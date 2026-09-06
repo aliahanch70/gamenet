@@ -1,0 +1,46 @@
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import Navbar from './components/Navbar'
+import Landing from './pages/Landing'
+import Auth from './pages/Auth'
+import Betting from './pages/Betting'
+import Wallet from './pages/Wallet'
+import Admin from './pages/Admin'
+import AdminWithdrawals from './pages/AdminWithdrawals'
+import AdminHouse from './pages/AdminHouse'
+
+function Guard({ children, admin=false }: { children: React.ReactNode; admin?: boolean }) {
+  const { userId, isAdmin, loading } = useAuth() as any
+  if (loading) return <div className="container" style={{padding:40,color:'var(--muted)'}}>در حال بارگذاری…</div>
+  if (!userId) return <Navigate to="/auth" replace />
+  if (admin && !isAdmin) return (
+    <div className="container" style={{padding:'32px 20px',maxWidth:560}}>
+      <div className="card" style={{padding:18}}>
+        <h3 style={{fontWeight:900}}>دسترسی مجاز نیست</h3>
+        <p style={{color:'var(--muted)',fontSize:13,marginTop:6}}>برای ورود به پنل مدیریت با حساب ادمین وارد شوید.</p>
+        <div style={{marginTop:12}}><Link to="/" className="btn btn-ghost btn-sm">بازگشت به خانه</Link></div>
+      </div>
+    </div>
+  )
+  return <>{children}</>
+}
+
+export default function App(){
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Navbar/>
+        <Routes>
+          <Route path="/" element={<Landing/>}/>
+          <Route path="/auth" element={<Auth/>}/>
+          <Route path="/betting" element={<Guard><Betting/></Guard>}/>
+          <Route path="/wallet" element={<Guard><Wallet/></Guard>}/>
+          <Route path="/admin" element={<Guard admin><Admin/></Guard>}/>
+          <Route path="/admin/withdrawals" element={<Guard admin><AdminWithdrawals/></Guard>}/>
+          <Route path="/admin/house" element={<Guard admin><AdminHouse/></Guard>}/>
+          <Route path="*" element={<Navigate to="/" replace/>}/>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  )
+}
