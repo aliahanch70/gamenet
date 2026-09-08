@@ -12,6 +12,7 @@ export default function Wallet(){
   const [wdAccount,setWdAccount]=useState('')
   const [wdBusy,setWdBusy]=useState(false)
   const [msg,setMsg]=useState<string|null>(null)
+  const [txFilter,setTxFilter]=useState<'all'|'charge'|'bet'|'win'|'refund'|'withdrawal'>('all')
 
   const load = async()=>{
     if(!userId) return
@@ -77,13 +78,24 @@ export default function Wallet(){
         </div>
       )}
 
-      <h3 style={{fontWeight:800,marginTop:20,marginBottom:10,fontSize:15}}>تراکنش‌ها</h3>
-      {txs.length===0 ? <div style={{color:'var(--muted)',fontSize:13}}>تراکنشی نیست.</div> :
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8,marginTop:20}}>
+        <h3 style={{fontWeight:800,fontSize:15}}>تراکنش‌ها {txs.length>0 && <span style={{fontWeight:600,color:'var(--muted)',fontSize:12}}>· {(txFilter==='all'?txs:txs.filter(x=> x.type===txFilter)).length}{txFilter!=='all'?` / ${txs.length}`:''}</span>}</h3>
+        {txs.length>0 && (
+          <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+            {(['all','charge','bet','win','refund','withdrawal'] as const).map(k=>{
+              const label = k==='all'?'همه':k==='charge'?'شارژ':k==='bet'?'شرط':k==='win'?'برد':k==='refund'?'برگشت':'برداشت'
+              const cnt = k==='all'? txs.length : txs.filter(x=> x.type===k).length
+              return <button key={k} onClick={()=> setTxFilter(k)} className={txFilter===k ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm'} style={{borderRadius:999, minHeight:28, fontSize:12, padding:'4px 10px'}}>{label} ({cnt})</button>
+            })}
+          </div>
+        )}
+      </div>
+      {(() => { const filtered = txFilter==='all'? txs : txs.filter(x=> x.type===txFilter); return filtered.length===0 ? <div style={{color:'var(--muted)',fontSize:13,marginTop:10}}>{txs.length===0?'تراکنشی نیست.':'در این فیلتر تراکنشی نیست.'}</div> :
         <div className="card" style={{overflow:'hidden'}}>
           <div className="table-wrap" style={{margin:0,padding:0}}>
           <table className="table">
             <thead><tr><th>نوع</th><th>مبلغ</th><th>توضیح</th><th>تاریخ</th></tr></thead>
-            <tbody>{txs.map(t=>(
+            <tbody>{filtered.map(t=>(
               <tr key={t.id}>
                 <td><span className="badge" style={{fontSize:11}}>{t.type==='charge'?'شارژ':t.type==='bet'?'شرط':t.type==='win'?'برد':t.type==='withdrawal'?'برداشت':t.type==='refund'?'برگشت':'—'}</span></td>
                 <td style={{color: t.amount>=0 ? 'var(--accent)' : '#ff6b7a',fontWeight:700, direction:'ltr',textAlign:'right',whiteSpace:'nowrap'}}>
@@ -96,7 +108,7 @@ export default function Wallet(){
           </table>
           </div>
         </div>
-      }
+      })()}
     </div>
   )
 }

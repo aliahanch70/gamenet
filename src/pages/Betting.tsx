@@ -23,6 +23,7 @@ const FALLBACK_ICONS: Record<string, string> = {
   'default': '🎮',
 }
 
+type Receipt = { id:string; title:string; game:string; pick:string; amount:number; odds:number; payout:number; at:string }
 function BetModal({
   match,
   initialPick,
@@ -34,7 +35,7 @@ function BetModal({
   initialPick: 'team_a' | 'team_b' | 'draw'
   balance: number
   onClose: () => void
-  onPlaced: () => void
+  onPlaced: (r?: Receipt) => void
 }) {
   const [pick, setPick] = useState<'team_a' | 'team_b' | 'draw'>(initialPick)
   const [amount, setAmount] = useState<number>(50000)
@@ -84,9 +85,11 @@ function BetModal({
       setBusy(false)
       return
     }
-    setOk('✅ شرط با موفقیت ثبت شد — ' + String(data).slice(0, 8))
-    onPlaced()
-    setTimeout(() => onClose(), 700)
+    const rid = String(data||'').slice(0,12) || Math.random().toString(36).slice(2,8)
+    const pickLabel = pick==='team_a' ? match.team_a : pick==='team_b' ? match.team_b : 'مساوی'
+    setOk('✅ شرط با موفقیت ثبت شد — ' + rid.slice(0, 8))
+    onPlaced({ id: rid, title: match.title, game: match.game, pick: pickLabel, amount, odds: odds!, payout, at: new Date().toISOString() } as any)
+    setTimeout(() => onClose(), 900)
     setBusy(false)
   }
 
@@ -253,6 +256,9 @@ export default function Betting() {
   const [cancelId, setCancelId] = useState<string | null>(null)
   const [gameIcons, setGameIcons] = useState<Record<string, string>>(FALLBACK_ICONS)
   const [modal, setModal] = useState<{ m: Match; pick: 'team_a' | 'team_b' | 'draw' } | null>(null)
+  const [gameFilter, setGameFilter] = useState<string>('all')
+  const [betFilter, setBetFilter] = useState<'all'|'pending'|'won'|'lost'|'refunded'>('all')
+  const [receipt, setReceipt] = useState<Receipt|null>(null)
 
   const load = async () => {
     const { data: ms } = await supabase.from('matches').select('*').order('starts_at', { ascending: true })
@@ -278,8 +284,24 @@ export default function Betting() {
 
   useEffect(() => { load() }, [userId])
   useEffect(() => { loadIcons() }, [])
+  useEffect(()=>{
+    if(!userId) return
+    const ch = supabase.channel('betting-live')
+      .on('postgres_changes',{event:'*',schema:'public',table:'matches'}, (p:any)=>{
+        const n = p.new as any, o = p.old as any
+        if(p.eventType==='INSERT' && n) setMatches((s: Match[])=> [...s, n as Match])
+        else if(p.eventType==='UPDATE' && n) setMatches((s: Match[])=> s.map(m=> m.id===n.id ? n as Match : m))
+        else if(p.eventType==='DELETE' && o) setMatches((s: Match[])=> s.filter(m=> m.id!==o.id))
+      })
+      .on('postgres_changes',{event:'*',schema:'public',table:'bets', filter:`user_id=eq.${userId}`}, ()=>{
+        supabase.from('bets').select('*, matches(*)').eq('user_id', userId).order('created_at',{ascending:false}).limit(50).then(({data}:any)=> setBets((data as any[])||[]))
+        refresh()
+      })
+      .subscribe()
+    return ()=>{ supabase.removeChannel(ch) }
+  },[userId])
 
-  const onPlaced = async () => { await load(); await refresh() }
+  const onPlaced = async (r?: Receipt) => { if(r) setReceipt(r); await load(); await refresh() }
 
   const cancel = async (b: Bet) => {
     const st = (b as any).matches?.status
@@ -294,6 +316,10 @@ export default function Betting() {
 
   const open = matches.filter(m => m.status === 'upcoming')
   const closed = matches.filter(m => m.status !== 'upcoming')
+  const games = Array.from(new Set(matches.map(m=> m.game))).filter(Boolean) as string[]
+  const openF = gameFilter==='all' ? open : open.filter(m=> m.game===gameFilter)
+  const closedF = gameFilter==='all' ? closed : closed.filter(m=> m.game===gameFilter)
+  const filteredBets = betFilter==='all' ? bets : bets.filter(b=> (b as any).status===betFilter)
 
   return (
     <div className="container" style={{ padding: '20px 14px 28px' }}>
@@ -306,21 +332,64 @@ export default function Betting() {
       </div>
       <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 6 }}>فقط مسابقات «قابل پیش‌بینی» باز هستند. بقیه بسته شده‌اند.</p>
 
-      <h3 style={{ fontWeight: 800, marginTop: 18, marginBottom: 10, fontSize: 15 }}>✅ قابل پیش‌بینی ({open.length})</h3>
-      {open.length === 0 ? <div style={{ color: 'var(--muted)', fontSize: 13, padding: '12px 0' }}>مسابقه‌ی بازی وجود ندارد.</div> :
-        <div className="bet-grid">{open.map(m => <MatchCard key={m.id} m={m} icon={gameIcons[m.game] || gameIcons['default'] || FALLBACK_ICONS['default']} onPick={p => setModal({ m, pick: p })} />)}</div>
+      {receipt && (
+        <div className="card" style={{ marginTop:14, padding:14, borderColor:'rgba(34,197,94,.35)', background:'linear-gradient(135deg,rgba(34,197,94,.10),rgba(255,255,255,.03))', display:'flex', flexDirection:'column', gap:10 }}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+            <div style={{fontWeight:900,fontSize:13}}>🧾 رسید شرط — {receipt.id.slice(0,8)} <span style={{fontWeight:600,color:'var(--muted)',fontSize:11}}>· {new Date(receipt.at).toLocaleString('fa-IR')}</span></div>
+            <button className="btn btn-ghost btn-sm" onClick={()=> setReceipt(null)} style={{minHeight:28,padding:'4px 10px'}}>×</button>
+          </div>
+          <div style={{fontSize:12,color:'#cbd5e1'}}>{receipt.game} · {receipt.title} — انتخاب: <b style={{color:'#f1f5f9'}}>{receipt.pick}</b></div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+            <div style={{background:'rgba(255,255,255,.05)',border:'1px solid var(--line)',borderRadius:10,padding:'8px',textAlign:'center'}}><div style={{fontSize:10,color:'var(--muted)'}}>مبلغ</div><div style={{fontWeight:900,fontSize:13}}>{receipt.amount.toLocaleString('fa-IR')} ت</div></div>
+            <div style={{background:'rgba(255,255,255,.05)',border:'1px solid var(--line)',borderRadius:10,padding:'8px',textAlign:'center'}}><div style={{fontSize:10,color:'var(--muted)'}}>ضریب</div><div style={{fontWeight:900,fontSize:13,color:'var(--accent)'}}>{receipt.odds.toFixed(2)}×</div></div>
+            <div style={{background:'rgba(0,229,160,.10)',border:'1px solid rgba(0,229,160,.25)',borderRadius:10,padding:'8px',textAlign:'center'}}><div style={{fontSize:10,color:'var(--muted)'}}>دریافتی</div><div style={{fontWeight:900,fontSize:13}}>{receipt.payout.toLocaleString('fa-IR')} ت</div></div>
+          </div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            <button className="btn btn-primary btn-sm" onClick={()=>{ const txt=`رسید GAMEVERSE\n${receipt.title} — ${receipt.game}\nانتخاب: ${receipt.pick}\nمبلغ: ${receipt.amount.toLocaleString('fa-IR')} ت · ضریب ${receipt.odds.toFixed(2)}× · دریافتی ${receipt.payout.toLocaleString('fa-IR')} ت\nکد: ${receipt.id} — ${new Date(receipt.at).toLocaleString('fa-IR')}`; navigator.clipboard.writeText(txt) }}>📋 کپی رسید</button>
+            <button className="btn btn-ghost btn-sm" onClick={async()=>{ const txt=`رسید GAMEVERSE\n${receipt.title} — ${receipt.game}\nانتخاب: ${receipt.pick}\nمبلغ: ${receipt.amount.toLocaleString('fa-IR')} ت · ضریب ${receipt.odds.toFixed(2)}×\nکد: ${receipt.id}`; if((navigator as any).share) try{ await (navigator as any).share({title:'رسید شرط GAMEVERSE', text: txt}) }catch{} else navigator.clipboard.writeText(txt) }}>↗️ اشتراک</button>
+          </div>
+        </div>
+      )}
+
+      {(games.length>0 || open.length>0) && (
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginTop:14,alignItems:'center'}}>
+          <span style={{fontSize:11,color:'var(--muted)',fontWeight:700}}>فیلتر بازی:</span>
+          <button onClick={()=> setGameFilter('all')} className={gameFilter==='all' ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm'} style={{borderRadius:999, minHeight:30}}>همه ({matches.length})</button>
+          {games.map(g=> (
+            <button key={g} onClick={()=> setGameFilter(g)} className={gameFilter===g ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm'} style={{borderRadius:999, minHeight:30}}>
+              {gameIcons[g]||'🎮'} {g} ({matches.filter(m=> m.game===g).length})
+            </button>
+          ))}
+          {gameFilter!=='all' && <button className="btn btn-ghost btn-sm" onClick={()=> setGameFilter('all')} style={{color:'var(--muted)'}}>پاک کردن ✕</button>}
+        </div>
+      )}
+
+      <h3 style={{ fontWeight: 800, marginTop: 18, marginBottom: 10, fontSize: 15 }}>✅ قابل پیش‌بینی ({openF.length}{gameFilter!=='all'?` / ${open.length}`:''})</h3>
+      {openF.length === 0 ? <div style={{ color: 'var(--muted)', fontSize: 13, padding: '12px 0' }}>{open.length===0?'مسابقه‌ی بازی وجود ندارد.':'در این بازی مسابقه‌ای نیست.'}</div> :
+        <div className="bet-grid">{openF.map(m => <MatchCard key={m.id} m={m} icon={gameIcons[m.game] || gameIcons['default'] || FALLBACK_ICONS['default']} onPick={p => setModal({ m, pick: p })} />)}</div>
       }
 
-      <h3 style={{ fontWeight: 800, marginTop: 20, marginBottom: 10, fontSize: 15 }}>🔒 پیش‌بینی بسته شده ({closed.length})</h3>
-      {closed.length === 0 ? <div style={{ color: 'var(--muted)', fontSize: 13 }}>موردی نیست.</div> :
-        <div className="bet-grid">{closed.map(m => <MatchCard key={m.id} m={m} icon={gameIcons[m.game] || gameIcons['default'] || FALLBACK_ICONS['default']} onPick={p => setModal({ m, pick: p })} />)}</div>
+      <h3 style={{ fontWeight: 800, marginTop: 20, marginBottom: 10, fontSize: 15 }}>🔒 پیش‌بینی بسته شده ({closedF.length}{gameFilter!=='all'?` / ${closed.length}`:''})</h3>
+      {closedF.length === 0 ? <div style={{ color: 'var(--muted)', fontSize: 13 }}>موردی نیست.</div> :
+        <div className="bet-grid">{closedF.map(m => <MatchCard key={m.id} m={m} icon={gameIcons[m.game] || gameIcons['default'] || FALLBACK_ICONS['default']} onPick={p => setModal({ m, pick: p })} />)}</div>
       }
 
       <div className="divider" />
-      <h3 style={{ fontWeight: 800, marginBottom: 10, fontSize: 15 }}>شرط‌های من {bets.length > 0 && <span style={{ fontWeight: 600, color: 'var(--muted)', fontSize: 12 }}>· {bets.length} شرط</span>}</h3>
-      {bets.length === 0 ? <div className="card" style={{ padding: '18px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>هنوز شرطی ثبت نکرده‌اید — از بالا یک مسابقه را انتخاب کنید.</div> :
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 10 }}>
-          {bets.map(b => {
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:8}}>
+        <h3 style={{ fontWeight: 800, fontSize: 15 }}>شرط‌های من {bets.length > 0 && <span style={{ fontWeight: 600, color: 'var(--muted)', fontSize: 12 }}>· {filteredBets.length}{betFilter!=='all'?` / ${bets.length}`:''} شرط</span>}</h3>
+        {bets.length>0 && (
+          <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+            {(['all','pending','won','lost','refunded'] as const).map(k=>{
+              const label = k==='all'?'همه':k==='pending'?'در انتظار':k==='won'?'برده':k==='lost'?'باخته':'لغو'
+              const cnt = k==='all'? bets.length : bets.filter(b=> (b as any).status===k).length
+              return <button key={k} onClick={()=> setBetFilter(k as any)} className={betFilter===k ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm'} style={{borderRadius:999, minHeight:28, fontSize:12, padding:'4px 10px'}}>{label} ({cnt})</button>
+            })}
+          </div>
+        )}
+      </div>
+      {filteredBets.length === 0 ? <div className="card" style={{ padding: '18px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 13, marginTop:10 }}>{bets.length===0?'هنوز شرطی ثبت نکرده‌اید — از بالا یک مسابقه را انتخاب کنید.':'در این فیلتر شرطی نیست.'}</div> :
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 10, marginTop:10 }}>
+          {filteredBets.map(b => {
             const canCancel = b.status === 'pending' && (b as any).matches?.status === 'upcoming'
             const st = b.status
             const stCfg = st === 'won' ? { label: 'برد ✅', bg: 'rgba(0,229,160,.15)', color: 'var(--accent)', border: 'rgba(0,229,160,.35)' } : st === 'lost' ? { label: 'باخت', bg: 'rgba(255,60,90,.12)', color: '#ff6b7a', border: 'rgba(255,90,110,.3)' } : st === 'refunded' ? { label: 'لغو شد', bg: 'rgba(255,255,255,.06)', color: 'var(--muted)', border: 'var(--line)' } : { label: 'در انتظار', bg: 'rgba(245,166,35,.14)', color: '#ffb84d', border: 'rgba(245,166,35,.35)' }
