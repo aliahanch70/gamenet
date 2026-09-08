@@ -276,6 +276,7 @@ export default function Admin(){
         <Link to="/admin/withdrawals" className="btn btn-primary btn-sm">💸 مدیریت برداشت‌ها</Link>
         <Link to="/admin/house" className="btn btn-ghost btn-sm">🏦 سود خانه</Link>
         <Link to="/admin/settings" className="btn btn-ghost btn-sm">⚙️ تنظیمات سایت</Link>
+        <Link to="/admin/design" className="btn btn-ghost btn-sm" style={{borderColor:"#8b5cf6", color:"#a78bfa"}}>🎨 طراحی سایت</Link>
         <select value={siteFont} onChange={handleFontChange} className="input" style={{width:'auto',padding:'6px 10px',fontSize:12}}>
           {FONT_OPTS.map(o=> <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -488,6 +489,7 @@ export default function Admin(){
           </div>
           <div style={{marginTop:12,display:'flex',gap:8,flexWrap:'wrap'}}>
             <Link to="/admin/settings" className="btn btn-ghost btn-sm">رفتن به تنظیمات سایت →</Link>
+            <Link to="/admin/design" className="btn btn-ghost btn-sm">🎨 مدیریت طراحی سایت →</Link>
           </div>
         </div>
       )}

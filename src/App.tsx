@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import Navbar from './components/Navbar'
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
@@ -10,10 +11,10 @@ import Admin from './pages/Admin'
 import AdminWithdrawals from './pages/AdminWithdrawals'
 import AdminHouse from './pages/AdminHouse'
 import AdminSettings from './pages/AdminSettings'
+import AdminDesign from './pages/AdminDesign'
 
 function applyFont(font: string){
   document.documentElement.setAttribute('data-font', font)
-  // Vazirmatn is default; allow switching via CSS variable
   if(font === 'vazir') document.body.style.fontFamily = "'Vazirmatn',system-ui,sans-serif"
   else if(font === 'samim') document.body.style.fontFamily = "'Samim',system-ui,sans-serif"
   else document.body.style.fontFamily = "'Vazirmatn',system-ui,sans-serif"
@@ -49,6 +50,7 @@ export default function App(){
 
   return (
     <AuthProvider>
+      <ThemeProvider>
       <BrowserRouter>
         <Navbar/>
         <Routes>
@@ -60,9 +62,11 @@ export default function App(){
           <Route path="/admin/withdrawals" element={<Guard admin><AdminWithdrawals/></Guard>}/>
           <Route path="/admin/house" element={<Guard admin><AdminHouse/></Guard>}/>
           <Route path="/admin/settings" element={<Guard admin><AdminSettings/></Guard>}/>
+          <Route path="/admin/design" element={<Guard admin><AdminDesign/></Guard>}/>
           <Route path="*" element={<Navigate to="/" replace/>}/>
         </Routes>
       </BrowserRouter>
+      </ThemeProvider>
     </AuthProvider>
   )
 }

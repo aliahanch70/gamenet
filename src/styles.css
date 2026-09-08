@@ -1,373 +1,490 @@
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap');
 
+/* ============================================================
+   GAMEVERSE — Base tokens (default = Premium Esports dark)
+   Per-design overrides via html[data-design="..."]
+   Add new design: add block [data-design="new"] + entry in designRegistry.ts
+   ============================================================ */
 :root{
   --bg:#080d1c;
   --surface:#111c33;
   --surface2:#15223d;
   --line:rgba(255,255,255,.07);
   --accent:#22c55e;
+  --accent2:#16a34a;
   --muted:#94a3b8;
-  --site-font:'Vazirmatn',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --text:#e2e8f0;
   --radius:16px;
+  --site-font:'Vazirmatn',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --nav-h:56px;
+  --content-max:1100px;
 }
-
 *{box-sizing:border-box;margin:0;padding:0;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
 *::-webkit-scrollbar{width:6px;height:6px}
 *::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:999px}
 *::-webkit-scrollbar-track{background:transparent}
-html{scroll-behavior:smooth}
-body{
-  font-family:var(--site-font);
-  background:var(--bg);
-  color:#e2e8f0;
-  line-height:1.6;
-  -webkit-font-smoothing:antialiased;
-}
+html{scroll-behavior:smooth;transition:background .25s,color .25s}
+body{font-family:var(--site-font);background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased;transition:background .25s,color .25s}
 a{color:inherit;text-decoration:none}
 img{display:block;max-width:100%}
 
-/* nav — glass, pill links, mobile drawer */
-.nav{
-  position:sticky;
-  top:0;
-  z-index:40;
-  background:rgba(8,13,28,.82);
-  backdrop-filter:blur(16px) saturate(1.2);
-  -webkit-backdrop-filter:blur(16px) saturate(1.2);
-  border-bottom:1px solid rgba(255,255,255,.08);
-  box-shadow:0 1px 0 rgba(255,255,255,.04), 0 8px 24px rgba(0,0,0,.22);
+/* ---------- Design tokens overrides ---------- */
+/* Minimal Modern — light, airy, strong type */
+html[data-design="minimal"]{
+  --bg:#f8fafc;
+  --surface:#ffffff;
+  --surface2:#f1f5f9;
+  --line:#e2e8f0;
+  --accent:#0ea5e9;
+  --accent2:#0284c7;
+  --muted:#64748b;
+  --text:#0f172a;
+  --radius:14px;
+  --nav-h:64px;
 }
-.nav-inner{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:16px;
-  max-width:1100px;
-  margin:0 auto;
-  padding:0 20px;
-  height:56px;
+html[data-design="minimal"] body{background:var(--bg);color:var(--text)}
+html[data-design="minimal"] ::-webkit-scrollbar-thumb{background:#cbd5e1}
+
+/* Premium Esports — default (already in :root), just accent refine */
+html[data-design="esports"]{
+  --bg:#080d1c;
+  --surface:#111c33;
+  --surface2:#15223d;
+  --line:rgba(255,255,255,.07);
+  --accent:#22c55e;
+  --accent2:#16a34a;
+  --muted:#94a3b8;
+  --text:#e2e8f0;
 }
-.nav-logo{font-weight:900;letter-spacing:-.02em;font-size:15px;color:#f1f5f9}
-.logo-mark{
-  width:34px;height:34px;border-radius:10px;
-  background:linear-gradient(135deg,#22c55e,#16a34a);
-  display:grid;place-items:center;color:#052e16;font-size:16px;flex-shrink:0;
-  box-shadow:0 4px 12px rgba(34,197,94,.35);
+
+/* Glass Futuristic — translucent glass, blur, violet accent */
+html[data-design="glass"]{
+  --bg:#0a0f1f;
+  --surface:rgba(255,255,255,.06);
+  --surface2:rgba(255,255,255,.10);
+  --line:rgba(255,255,255,.10);
+  --accent:#8b5cf6;
+  --accent2:#7c3aed;
+  --muted:#a5b4cb;
+  --text:#f1f5f9;
 }
+html[data-design="glass"] body{
+  background:
+    radial-gradient(900px 500px at 20% -10%, rgba(139,92,246,.18), transparent 60%),
+    radial-gradient(700px 400px at 90% 0%, rgba(14,165,233,.14), transparent 60%),
+    radial-gradient(800px 600px at 50% 100%, rgba(34,197,94,.08), transparent 60%),
+    #0a0f1f;
+}
+
+/* Bold Sportsbook — dense, amber odds, dark slate */
+html[data-design="sportsbook"]{
+  --bg:#0b0f1e;
+  --surface:#111827;
+  --surface2:#1e293b;
+  --line:#1f3340;
+  --accent:#f59e0b;
+  --accent2:#d97706;
+  --muted:#94a3b8;
+  --text:#e2e8f0;
+  --radius:10px;
+  --nav-h:50px;
+}
+html[data-design="neon"]{
+  --bg:#050a14;
+  --surface:#0a1628;
+  --surface2:#0f2340;
+  --line:rgba(0,229,255,.18);
+  --accent:#00e5ff;
+  --accent2:#ff2d95;
+  --muted:#7dd3fc;
+  --text:#e0f2fe;
+  --radius:12px;
+  --nav-h:56px;
+}
+html[data-design="neon"] body{background:radial-gradient(800px 400px at 15% 0%, rgba(0,229,255,.18), transparent 60%),radial-gradient(600px 400px at 85% 10%, rgba(255,45,149,.14), transparent 60%),#050a14}
+html[data-design="midnight"]{
+  --bg:#000000;
+  --surface:#0a0a0a;
+  --surface2:#141414;
+  --line:#1f1f1f;
+  --accent:#ffffff;
+  --accent2:#a1a1aa;
+  --muted:#71717a;
+  --text:#fafafa;
+  --radius:10px;
+  --nav-h:54px;
+}
+html[data-design="midnight"] body{background:#000;color:var(--text)}
+html[data-design="arctic"]{
+  --bg:#eef2f7;
+  --surface:#ffffff;
+  --surface2:#f1f5f9;
+  --line:#d6dde8;
+  --accent:#2563eb;
+  --accent2:#1d4ed8;
+  --muted:#64748b;
+  --text:#1e293b;
+  --radius:14px;
+  --nav-h:60px;
+}
+html[data-design="arctic"] body{background:var(--bg);color:var(--text)}
+html[data-design="arctic"] ::-webkit-scrollbar-thumb{background:#94a3b8}
+html[data-design="stadium"]{
+  --bg:#0f1410;
+  --surface:#182018;
+  --surface2:#24301e;
+  --line:rgba(250,204,21,.14);
+  --accent:#facc15;
+  --accent2:#22c55e;
+  --muted:#a3a3a3;
+  --text:#f5f5dc;
+  --radius:10px;
+  --nav-h:56px;
+}
+html[data-design="stadium"] body{background:radial-gradient(900px 500px at 50% 0%, rgba(34,197,94,.14), transparent 60%),#0f1410}
+
+/* ---------- Nav — 4 completely different headers ---------- */
+.nav{position:sticky;top:0;z-index:40;border-bottom:1px solid var(--line);transition:all .25s}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:var(--content-max);margin:0 auto;padding:0 20px;height:var(--nav-h);transition:all .25s}
+.nav-logo{font-weight:900;letter-spacing:-.02em;font-size:15px}
+.logo-mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;flex-shrink:0;transition:all .25s}
 .nav-links{display:flex;align-items:center;gap:6px}
-.nav-link{
-  display:inline-flex;align-items:center;gap:6px;
-  padding:7px 14px;border-radius:999px;
-  font-size:13px;font-weight:600;color:#cbd5e1;
-  border:1px solid transparent;transition:all .15s;
-}
-.nav-link:hover{background:rgba(255,255,255,.06);color:#f1f5f9;border-color:rgba(255,255,255,.08)}
-.nav-link.active{background:rgba(255,255,255,.09);color:#f1f5f9;border-color:rgba(255,255,255,.12)}
-.nav-link.active-accent{background:rgba(34,197,94,.14);color:#86efac;border-color:rgba(34,197,94,.28)}
-.balance-chip{
-  display:inline-flex;align-items:center;gap:6px;
-  padding:6px 12px;border-radius:999px;
-  background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.22);
-  color:#86efac;font-size:12px;font-weight:800;
-}
-.hamburger{
-  display:none;align-items:center;justify-content:center;
-  width:40px;height:40px;border-radius:10px;
-  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);
-  color:#e2e8f0;cursor:pointer;flex-shrink:0;
-  transition:background .15s,border-color .15s;
-}
-.hamburger:active{background:rgba(255,255,255,.10)}
+.nav-link{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;transition:all .15s}
+.balance-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:800}
+.hamburger{display:none;align-items:center;justify-content:center;width:40px;height:40px;border-radius:10px;cursor:pointer;flex-shrink:0;transition:all .15s}
 .hamburger-bars{width:18px;height:14px;position:relative;display:block}
-.hamburger-bars span{
-  position:absolute;left:0;right:0;height:2px;background:#e2e8f0;border-radius:999px;
-  transition:transform .2s,opacity .2s,top .2s;
-}
-.hamburger-bars span:nth-child(1){top:0}
-.hamburger-bars span:nth-child(2){top:6px}
-.hamburger-bars span:nth-child(3){top:12px}
+.hamburger-bars span{position:absolute;left:0;right:0;height:2px;border-radius:999px;transition:transform .2s,opacity .2s,top .2s}
+.hamburger-bars span:nth-child(1){top:0}.hamburger-bars span:nth-child(2){top:6px}.hamburger-bars span:nth-child(3){top:12px}
 .hamburger.open .hamburger-bars span:nth-child(1){top:6px;transform:rotate(45deg)}
 .hamburger.open .hamburger-bars span:nth-child(2){opacity:0;transform:scaleX(.5)}
 .hamburger.open .hamburger-bars span:nth-child(3){top:6px;transform:rotate(-45deg)}
 .drawer{display:none}
 
-/* hero */
-.hero{
-  position:relative;
-  overflow:hidden;
-  background:
-    radial-gradient(700px 400px at 70% 0%, rgba(34,197,94,.14), transparent 60%),
-    radial-gradient(600px 500px at 10% 20%, rgba(99,102,241,.12), transparent 60%),
-    var(--bg);
-  border-bottom:1px solid var(--line);
-  padding:72px 24px;
-}
-.hero-inner{max-width:1100px;margin:0 auto}
+/* esports nav (default) */
+html[data-design="esports"] .nav, :root .nav{background:rgba(8,13,28,.82);backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);border-bottom-color:rgba(255,255,255,.08);box-shadow:0 1px 0 rgba(255,255,255,.04), 0 8px 24px rgba(0,0,0,.22)}
+html[data-design="esports"] .logo-mark{background:linear-gradient(135deg,#22c55e,#16a34a);color:#052e16;box-shadow:0 4px 12px rgba(34,197,94,.35)}
+html[data-design="esports"] .nav-logo{color:#f1f5f9}
+html[data-design="esports"] .nav-link{color:#cbd5e1;border:1px solid transparent}
+html[data-design="esports"] .nav-link:hover{background:rgba(255,255,255,.06);color:#f1f5f9;border-color:rgba(255,255,255,.08)}
+html[data-design="esports"] .nav-link.active{background:rgba(255,255,255,.09);color:#f1f5f9;border-color:rgba(255,255,255,.12)}
+html[data-design="esports"] .nav-link.active-accent{background:rgba(34,197,94,.14);color:#86efac;border-color:rgba(34,197,94,.28)}
+html[data-design="esports"] .balance-chip{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.22);color:#86efac}
+html[data-design="esports"] .hamburger{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);color:#e2e8f0}
+html[data-design="esports"] .hamburger-bars span{background:#e2e8f0}
+
+/* minimal nav — white, flat, no blur */
+html[data-design="minimal"] .nav{background:#ffffff;border-bottom:1px solid #e2e8f0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+html[data-design="minimal"] .logo-mark{background:#0ea5e9;color:#fff;box-shadow:none;border-radius:8px;width:30px;height:30px;font-size:14px}
+html[data-design="minimal"] .nav-logo{color:#0f172a;letter-spacing:-.03em}
+html[data-design="minimal"] .nav-link{color:#475569;border:0;padding:6px 12px}
+html[data-design="minimal"] .nav-link:hover{background:#f1f5f9;color:#0f172a}
+html[data-design="minimal"] .nav-link.active{background:#0f172a;color:#fff}
+html[data-design="minimal"] .balance-chip{background:#e0f2fe;border:1px solid #bae6fd;color:#0369a1}
+html[data-design="minimal"] .hamburger{background:#f8fafc;border:1px solid #e2e8f0;color:#334155}
+html[data-design="minimal"] .hamburger-bars span{background:#334155}
+
+/* glass nav — translucent glass */
+html[data-design="glass"] .nav{background:rgba(255,255,255,.06);backdrop-filter:blur(20px) saturate(1.3);-webkit-backdrop-filter:blur(20px) saturate(1.3);border-bottom-color:rgba(255,255,255,.10);box-shadow:0 8px 32px rgba(0,0,0,.25)}
+html[data-design="glass"] .logo-mark{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);color:#fff;backdrop-filter:blur(12px);box-shadow:0 4px 16px rgba(139,92,246,.25)}
+html[data-design="glass"] .nav-logo{color:#fff}
+html[data-design="glass"] .nav-link{color:rgba(255,255,255,.75);border:1px solid transparent}
+html[data-design="glass"] .nav-link:hover{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.12)}
+html[data-design="glass"] .nav-link.active{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.18)}
+html[data-design="glass"] .nav-link.active-accent{background:rgba(139,92,246,.18);color:#c4b5fd;border-color:rgba(139,92,246,.35)}
+html[data-design="glass"] .balance-chip{background:rgba(139,92,246,.18);border:1px solid rgba(139,92,246,.30);color:#ddd6fe}
+html[data-design="glass"] .hamburger{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#fff}
+html[data-design="glass"] .hamburger-bars span{background:#fff}
+
+/* sportsbook nav — compact, dark, amber accent */
+html[data-design="sportsbook"] .nav{background:#0b0f1e;border-bottom:1px solid #1e293b;box-shadow:none}
+html[data-design="sportsbook"] .nav-inner{height:50px;padding:0 16px}
+html[data-design="sportsbook"] .logo-mark{background:#f59e0b;color:#0b0f1e;border-radius:6px;width:30px;height:30px;font-size:13px;box-shadow:none}
+html[data-design="sportsbook"] .nav-logo{color:#f1f5f9;font-size:14px;letter-spacing:-.01em}
+html[data-design="sportsbook"] .nav-link{color:#94a3b8;border:0;padding:5px 10px;font-size:12.5px;border-radius:6px}
+html[data-design="sportsbook"] .nav-link:hover{background:#1e293b;color:#f1f5f9}
+html[data-design="sportsbook"] .nav-link.active{background:#f59e0b;color:#0b0f1e}
+html[data-design="sportsbook"] .balance-chip{background:#f59e0b;color:#0b0f1e;border:0;padding:5px 10px;font-size:11.5px;border-radius:6px}
+html[data-design="sportsbook"] .hamburger{background:#111827;border:1px solid #1e293b;color:#e2e8f0}
+html[data-design="sportsbook"] .hamburger-bars span{background:#e2e8f0}
+html[data-design="neon"] .nav{background:rgba(5,10,20,.92);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);border-bottom:1px solid rgba(0,229,255,.18);box-shadow:0 0 0 1px rgba(0,229,255,.08), 0 8px 32px rgba(0,0,0,.4)}
+html[data-design="neon"] .logo-mark{background:#00e5ff;color:#001018;box-shadow:0 0 16px rgba(0,229,255,.5);border-radius:6px;width:32px;height:32px;font-size:14px}
+html[data-design="neon"] .nav-logo{color:#e0f2fe;letter-spacing:.08em;font-size:14px}
+html[data-design="neon"] .nav-link{color:#7dd3fc;border:1px solid transparent;border-radius:6px;padding:6px 12px;font-size:12.5px}
+html[data-design="neon"] .nav-link:hover{background:rgba(0,229,255,.08);color:#e0f2fe;border-color:rgba(0,229,255,.2)}
+html[data-design="neon"] .nav-link.active{background:rgba(0,229,255,.12);color:#00e5ff;border-color:rgba(0,229,255,.3);box-shadow:0 0 12px rgba(0,229,255,.18)}
+html[data-design="neon"] .balance-chip{background:rgba(0,229,255,.10);border:1px solid rgba(0,229,255,.25);color:#00e5ff;box-shadow:0 0 10px rgba(0,229,255,.15)}
+html[data-design="neon"] .hamburger{background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);color:#e0f2fe}
+html[data-design="neon"] .hamburger-bars span{background:#00e5ff;box-shadow:0 0 4px rgba(0,229,255,.6)}
+html[data-design="midnight"] .nav{background:#000;border-bottom:1px solid #1a1a1a;box-shadow:none}
+html[data-design="midnight"] .logo-mark{background:#fff;color:#000;border-radius:6px;width:28px;height:28px;font-size:12px;box-shadow:none}
+html[data-design="midnight"] .nav-logo{color:#fff;font-size:14px;letter-spacing:.04em}
+html[data-design="midnight"] .nav-link{color:#71717a;border:0;padding:6px 10px;font-size:13px;border-radius:6px}
+html[data-design="midnight"] .nav-link:hover{background:#0a0a0a;color:#fafafa}
+html[data-design="midnight"] .nav-link.active{background:#fff;color:#000}
+html[data-design="midnight"] .balance-chip{background:#fff;color:#000;border:0;border-radius:6px;font-size:11.5px}
+html[data-design="midnight"] .hamburger{background:#0a0a0a;border:1px solid #1a1a1a;color:#fafafa}
+html[data-design="midnight"] .hamburger-bars span{background:#fafafa}
+html[data-design="arctic"] .nav{background:rgba(255,255,255,.88);backdrop-filter:blur(14px) saturate(1.1);-webkit-backdrop-filter:blur(14px) saturate(1.1);border-bottom:1px solid #d6dde8;box-shadow:0 1px 3px rgba(15,23,42,.06), 0 8px 24px rgba(15,23,42,.04)}
+html[data-design="arctic"] .logo-mark{background:#2563eb;color:#fff;box-shadow:0 4px 12px rgba(37,99,235,.25);border-radius:10px;width:32px;height:32px;font-size:14px}
+html[data-design="arctic"] .nav-logo{color:#1e293b}
+html[data-design="arctic"] .nav-link{color:#475569;border:0;padding:7px 14px}
+html[data-design="arctic"] .nav-link:hover{background:#f1f5f9;color:#1e293b}
+html[data-design="arctic"] .nav-link.active{background:#1e293b;color:#fff}
+html[data-design="arctic"] .balance-chip{background:#dbeafe;border:1px solid #bfdbfe;color:#1d4ed8}
+html[data-design="arctic"] .hamburger{background:#fff;border:1px solid #d6dde8;color:#334155}
+html[data-design="arctic"] .hamburger-bars span{background:#334155}
+html[data-design="stadium"] .nav{background:#0f1410;border-bottom:1px solid rgba(250,204,21,.12);box-shadow:none}
+html[data-design="stadium"] .logo-mark{background:#facc15;color:#0f1410;border-radius:6px;width:30px;height:30px;font-size:13px;box-shadow:none}
+html[data-design="stadium"] .nav-logo{color:#fef08a;font-size:14px;letter-spacing:.02em}
+html[data-design="stadium"] .nav-link{color:#a3a3a3;border:0;padding:6px 12px;font-size:13px;border-radius:6px}
+html[data-design="stadium"] .nav-link:hover{background:rgba(250,204,21,.08);color:#fef08a}
+html[data-design="stadium"] .nav-link.active{background:#facc15;color:#0f1410;font-weight:800}
+html[data-design="stadium"] .balance-chip{background:#facc15;color:#0f1410;border:0;border-radius:6px}
+html[data-design="stadium"] .hamburger{background:#182018;border:1px solid rgba(250,204,21,.14);color:#fef08a}
+html[data-design="stadium"] .hamburger-bars span{background:#fef08a}
+
+/* ---------- Hero / Landing ---------- */
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line);padding:56px 24px;transition:all .25s}
+.hero-inner{max-width:var(--content-max);margin:0 auto}
 .hero h1{font-size:clamp(28px,4vw,44px);line-height:1.15;letter-spacing:-.03em}
 .hero p{color:var(--muted);max-width:560px;margin-top:12px}
+.hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;align-items:start}
 
-/* layout helpers */
-.container{max-width:1100px;margin:0 auto;padding:24px}
+/* esports hero */
+html[data-design="esports"] .hero{background:radial-gradient(700px 400px at 70% 0%, rgba(34,197,94,.14), transparent 60%), radial-gradient(600px 500px at 10% 20%, rgba(99,102,241,.12), transparent 60%), var(--bg)}
+
+/* minimal hero — white, centered copy, no gradients */
+html[data-design="minimal"] .hero{background:#ffffff;border-bottom:1px solid #e2e8f0;padding:64px 24px 48px}
+html[data-design="minimal"] .hero .container{max-width:900px;text-align:center}
+html[data-design="minimal"] .hero-grid{grid-template-columns:1fr;gap:32px}
+html[data-design="minimal"] .hero h1{font-size:clamp(32px,5vw,52px);color:#0f172a}
+html[data-design="minimal"] .hero p{margin-left:auto;margin-right:auto;color:#475569}
+html[data-design="minimal"] .hero .card{background:#f8fafc;border:1px solid #e2e8f0;box-shadow:none}
+
+/* glass hero — centered glass panel + glow orbs */
+html[data-design="glass"] .hero{
+  background:
+    radial-gradient(600px 400px at 30% 10%, rgba(139,92,246,.22), transparent 60%),
+    radial-gradient(700px 500px at 80% 90%, rgba(14,165,233,.16), transparent 60%),
+    #0a0f1f;
+  padding:64px 24px 48px;
+}
+html[data-design="glass"] .hero .card{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  box-shadow:0 16px 40px rgba(0,0,0,.35);
+}
+
+/* sportsbook hero — compact stats bar + ticker */
+html[data-design="sportsbook"] .hero{background:#0b0f1e;border-bottom:1px solid #1e293b;padding:36px 16px 24px}
+html[data-design="sportsbook"] .hero-grid{grid-template-columns:1fr 380px;gap:20px}
+html[data-design="sportsbook"] .hero h1{font-size:clamp(24px,3vw,34px)}
+html[data-design="sportsbook"] .hero .card{background:#111827;border:1px solid #1e293b}
+html[data-design="neon"] .hero{background:radial-gradient(800px 400px at 20% 0%, rgba(0,229,255,.16), transparent 60%),radial-gradient(600px 400px at 80% 100%, rgba(255,45,149,.12), transparent 60%),#050a14;border-bottom:1px solid rgba(0,229,255,.12);padding:56px 24px 40px}
+html[data-design="neon"] .hero .card{background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.18);backdrop-filter:blur(16px);box-shadow:0 0 24px rgba(0,229,255,.12), 0 16px 40px rgba(0,0,0,.4)}
+html[data-design="midnight"] .hero{background:#000;border-bottom:1px solid #1a1a1a;padding:48px 24px 32px}
+html[data-design="midnight"] .hero h1{color:#fff;letter-spacing:-.02em}
+html[data-design="midnight"] .hero p{color:#71717a}
+html[data-design="midnight"] .hero .card{background:#0a0a0a;border:1px solid #1a1a1a;box-shadow:none}
+html[data-design="arctic"] .hero{background:#eef2f7;border-bottom:1px solid #d6dde8;padding:56px 24px 40px}
+html[data-design="arctic"] .hero h1{color:#1e293b}
+html[data-design="arctic"] .hero p{color:#64748b}
+html[data-design="arctic"] .hero .card{background:#fff;border:1px solid #d6dde8;box-shadow:0 4px 16px rgba(15,23,42,.06)}
+html[data-design="stadium"] .hero{background:#0f1410;border-bottom:1px solid rgba(250,204,21,.12);padding:48px 24px 32px}
+html[data-design="stadium"] .hero .card{background:#182018;border:1px solid rgba(250,204,21,.14);border-top:2px solid #facc15}
+
+/* ---------- Layout helpers ---------- */
+.container{max-width:var(--content-max);margin:0 auto;padding:24px;transition:all .25s}
+html[data-design="minimal"] .container{max-width:1100px}
+html[data-design="sportsbook"] .container{max-width:1200px}
 .divider{height:1px;background:var(--line);margin:16px 0}
 
-/* card */
-.card{
-  background:var(--surface);
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:18px;
-}
+/* ---------- Card ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;transition:all .2s}
+html[data-design="minimal"] .card{background:#fff;border-color:#e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);border-radius:12px}
+html[data-design="glass"] .card{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.10);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 8px 24px rgba(0,0,0,.25);border-radius:16px}
+html[data-design="sportsbook"] .card{background:#111827;border-color:#1e293b;border-radius:8px;padding:14px}
+html[data-design="neon"] .card{background:rgba(10,22,40,.88);border-color:rgba(0,229,255,.14);box-shadow:0 0 0 1px rgba(0,229,255,.06), 0 8px 24px rgba(0,0,0,.35);border-radius:12px}
+html[data-design="midnight"] .card{background:#0a0a0a;border-color:#1a1a1a;box-shadow:none;border-radius:10px}
+html[data-design="arctic"] .card{background:#fff;border-color:#d6dde8;box-shadow:0 2px 8px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);border-radius:14px}
+html[data-design="stadium"] .card{background:#182018;border-color:rgba(250,204,21,.12);border-radius:10px}
 
-/* btn pill */
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  padding:9px 18px;
-  border-radius:999px;
-  border:1px solid var(--line);
-  background:var(--surface2);
-  color:#e2e8f0;
-  font-family:var(--site-font);
-  font-weight:500;
-  font-size:14px;
-  cursor:pointer;
-  transition:background .15s,border-color .15s,opacity .15s;
-}
+/* ---------- Buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 18px;border-radius:999px;border:1px solid var(--line);background:var(--surface2);color:var(--text);font-family:var(--site-font);font-weight:500;font-size:14px;cursor:pointer;transition:all .15s}
 .btn:hover{border-color:rgba(255,255,255,.14)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
-.btn-primary{background:var(--accent);color:#052e16;border-color:transparent;font-weight:600}
-.btn-primary:hover{filter:brightness(1.05)}
+.btn-primary{border-color:transparent;font-weight:600}
 .btn-ghost{background:transparent}
+html[data-design="minimal"] .btn{border-radius:8px;background:#fff;border-color:#e2e8f0;color:#0f172a}
+html[data-design="minimal"] .btn-primary{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
+html[data-design="minimal"] .btn-primary:hover{background:#0284c7}
+html[data-design="minimal"] .btn:hover{border-color:#cbd5e1}
+html[data-design="esports"] .btn-primary{background:var(--accent);color:#052e16}
+html[data-design="glass"] .btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12);backdrop-filter:blur(12px);color:#fff}
+html[data-design="glass"] .btn-primary{background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;border:0;box-shadow:0 4px 16px rgba(139,92,246,.35)}
+html[data-design="sportsbook"] .btn{border-radius:6px;background:#1e293b;border-color:#334155;color:#e2e8f0;padding:8px 14px;font-size:13px}
+html[data-design="sportsbook"] .btn-primary{background:#f59e0b;color:#0b0f1e;border-color:#f59e0b;font-weight:700}
+html[data-design="sportsbook"] .btn-primary:hover{background:#d97706}
+html[data-design="neon"] .btn{background:rgba(0,229,255,.06);border-color:rgba(0,229,255,.18);color:#e0f2fe}
+html[data-design="neon"] .btn-primary{background:linear-gradient(90deg,#00e5ff,#06b6d4);color:#001018;border:0;box-shadow:0 4px 16px rgba(0,229,255,.35);border-radius:8px}
+html[data-design="midnight"] .btn{background:#0a0a0a;border-color:#1a1a1a;color:#fafafa;border-radius:8px}
+html[data-design="midnight"] .btn-primary{background:#fff;color:#000;border-color:#fff}
+html[data-design="arctic"] .btn{background:#fff;border-color:#d6dde8;color:#1e293b;border-radius:10px}
+html[data-design="arctic"] .btn-primary{background:#2563eb;color:#fff;border-color:#2563eb;box-shadow:0 2px 8px rgba(37,99,235,.2)}
+html[data-design="stadium"] .btn{background:#24301e;border-color:rgba(250,204,21,.12);color:#fef08a;border-radius:8px}
+html[data-design="stadium"] .btn-primary{background:#facc15;color:#0f1410;border-color:#facc15;font-weight:800}
 
-/* input */
-.input{
-  width:100%;
-  padding:10px 14px;
-  border-radius:12px;
-  border:1px solid var(--line);
-  background:var(--surface2);
-  color:#e2e8f0;
-  font-family:var(--site-font);
-  font-size:14px;
-  outline:none;
-  transition:border-color .15s;
-}
+/* ---------- Inputs ---------- */
+.input{width:100%;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--text);font-family:var(--site-font);font-size:14px;outline:none;transition:border-color .15s}
 .input::placeholder{color:var(--muted)}
-.input:focus{border-color:rgba(34,197,94,.45)}
+.input:focus{border-color:var(--accent)}
 textarea.input{resize:vertical;min-height:88px}
 select.input{cursor:pointer}
+html[data-design="minimal"] .input{background:#fff;border-color:#e2e8f0;color:#0f172a}
+html[data-design="minimal"] .input:focus{border-color:#0ea5e9}
+html[data-design="glass"] .input{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#fff;backdrop-filter:blur(8px)}
+html[data-design="sportsbook"] .input{background:#0f172a;border-color:#1e293b;color:#e2e8f0;border-radius:6px}
+html[data-design="neon"] .input{background:rgba(0,229,255,.06);border-color:rgba(0,229,255,.18);color:#e0f2fe;border-radius:8px}
+html[data-design="midnight"] .input{background:#0a0a0a;border-color:#1a1a1a;color:#fafafa;border-radius:8px}
+html[data-design="arctic"] .input{background:#fff;border-color:#d6dde8;color:#1e293b;border-radius:10px}
+html[data-design="stadium"] .input{background:#0f1410;border-color:rgba(250,204,21,.14);color:#fef08a;border-radius:8px}
 
-/* badge + status */
-.badge{
-  display:inline-flex;align-items:center;
-  padding:3px 10px;
-  border-radius:999px;
-  font-size:12px;
-  font-weight:600;
-  letter-spacing:.02em;
-  border:1px solid var(--line);
-  background:rgba(255,255,255,.04);
-  color:var(--muted);
-}
-.status{composes:badge}
+/* ---------- Badge / Status ---------- */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:.02em;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted)}
 .status.upcoming{color:#38bdf8;border-color:rgba(56,189,248,.22);background:rgba(56,189,248,.1)}
 .status.live{color:#22c55e;border-color:rgba(34,197,94,.25);background:rgba(34,197,94,.12)}
 .status.finished{color:var(--muted);background:rgba(255,255,255,.04)}
+html[data-design="minimal"] .badge{background:#f1f5f9;border-color:#e2e8f0;color:#475569}
+html[data-design="minimal"] .status.upcoming{background:#e0f2fe;color:#0369a1;border-color:#bae6fd}
+html[data-design="sportsbook"] .badge{border-radius:6px;font-size:11px;padding:2px 8px}
+html[data-design="sportsbook"] .status{border-radius:6px}
+html[data-design="neon"] .badge{background:rgba(0,229,255,.08);border-color:rgba(0,229,255,.2);color:#7dd3fc}
+html[data-design="midnight"] .badge{background:#0a0a0a;border-color:#1a1a1a;color:#71717a}
+html[data-design="arctic"] .badge{background:#f1f5f9;border-color:#d6dde8;color:#475569}
+html[data-design="stadium"] .badge{background:rgba(250,204,21,.08);border-color:rgba(250,204,21,.18);color:#facc15;border-radius:6px}
 
-/* table */
+/* ---------- Tables ---------- */
 .table-wrap{overflow-x:auto}
 .table{width:100%;border-collapse:collapse;font-size:14px}
-.table th,.table td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.table th,.table td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
 .table th{color:var(--muted);font-weight:500;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
-.table td{color:#e2e8f0}
+.table td{color:var(--text)}
 .table tr:last-child td{border-bottom:none}
+html[data-design="minimal"] .table th{color:#64748b}
+html[data-design="sportsbook"] .table th{background:#0f172a;color:#94a3b8}
+html[data-design="sportsbook"] .table td{padding:8px 10px;font-size:13px}
 
-/* grids */
+/* ---------- Grids ---------- */
 .admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.bet-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.bet-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;transition:all .25s}
 .gallery-grid img{border-radius:12px;object-fit:cover;width:100%}
 
-/* font preview */
-.font-preview{
-  padding:16px;
-  border-radius:12px;
-  border:1px solid var(--line);
-  background:var(--surface2);
-  font-family:var(--site-font);
-}
+/* Per-design grids — the core layout difference */
+html[data-design="minimal"] .bet-grid{grid-template-columns:repeat(3,1fr);gap:20px}
+html[data-design="minimal"] .features-grid{grid-template-columns:repeat(3,1fr);gap:20px}
+html[data-design="minimal"] .gallery-grid{grid-template-columns:repeat(3,1fr);gap:20px}
+html[data-design="esports"] .bet-grid{grid-template-columns:repeat(2,1fr);gap:16px}
+html[data-design="glass"] .bet-grid{grid-template-columns:repeat(2,1fr);gap:18px}
+html[data-design="sportsbook"] .bet-grid{grid-template-columns:1fr;gap:8px}
+html[data-design="sportsbook"] .features-grid{grid-template-columns:repeat(4,1fr);gap:12px}
+html[data-design="sportsbook"] .gallery-grid{grid-template-columns:repeat(4,1fr);gap:12px}
+html[data-design="neon"] .bet-grid{grid-template-columns:repeat(2,1fr);gap:16px}
+html[data-design="midnight"] .bet-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+html[data-design="arctic"] .bet-grid{grid-template-columns:repeat(3,1fr);gap:20px}
+html[data-design="stadium"] .bet-grid{grid-template-columns:repeat(2,1fr);gap:14px}
 
-/* odds / num */
-.odds,.num{font-variant-numeric:tabular-nums}
-
-/* orbs & badges */
-.team-orb{
-  width:42px;height:42px;
-  border-radius:50%;
-  display:grid;place-items:center;
-  background:var(--surface2);
-  border:1px solid var(--line);
-  font-weight:700;
-  font-size:14px;
-  flex-shrink:0;
-}
-.pick-orb{
-  width:36px;height:36px;
-  border-radius:50%;
-  display:grid;place-items:center;
-  background:var(--surface2);
-  border:1px solid var(--line);
-  font-weight:700;
-  font-size:13px;
-  flex-shrink:0;
-}
-.vs-badge{
-  width:36px;height:36px;
-  border-radius:50%;
-  display:grid;place-items:center;
-  background:var(--surface2);
-  border:1px solid var(--line);
-  color:var(--muted);
-  font-size:12px;
-  font-weight:700;
-  flex-shrink:0;
-}
-.odds-pill{
-  display:inline-flex;align-items:center;
-  padding:4px 10px;
-  border-radius:999px;
-  background:rgba(34,197,94,.12);
-  border:1px solid rgba(34,197,94,.22);
-  color:var(--accent);
-  font-size:13px;
-  font-weight:600;
-  font-variant-numeric:tabular-nums;
-}
-
-/* bet cards */
-.bet-card{
-  background:var(--surface);
-  border:1px solid var(--line);
-  border-radius:16px;
-  padding:16px;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-.pick-card{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:12px 14px;
-  border-radius:14px;
-  background:var(--surface2);
-  border:1px solid var(--line);
-  cursor:pointer;
-  transition:border-color .15s,background .15s;
-}
-.pick-card:hover{border-color:rgba(255,255,255,.13)}
-.pick-card.selected{border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.08)}
-.bet-draw{
-  text-align:center;
-  padding:10px;
-  border-radius:12px;
-  border:1px dashed var(--line);
-  color:var(--muted);
-  font-size:13px;
-  background:rgba(255,255,255,.02);
-}
-.bet-closed{
+/* ---------- Sportsbook: match cards become dense table rows ---------- */
+html[data-design="sportsbook"] .bet-grid .card{
+  display:flex;flex-direction:row;align-items:center;gap:12px;flex-wrap:wrap;
   padding:10px 14px;
-  border-radius:12px;
-  background:rgba(255,255,255,.04);
-  border:1px solid var(--line);
-  color:var(--muted);
-  font-size:13px;
-  text-align:center;
 }
+html[data-design="sportsbook"] .bet-grid .card .team-orb{width:30px;height:30px;font-size:12px}
+html[data-design="sportsbook"] .bet-grid .card .odds-pill{background:#f59e0b;color:#0b0f1e;border-color:#f59e0b;font-weight:800;font-size:12px;padding:4px 10px}
+html[data-design="sportsbook"] .bet-grid .card .vs-badge{background:#1e293b;color:#64748b;border-color:#334155}
+
+/* Glass: extra blur on cards */
+html[data-design="glass"] .bet-grid .card{backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+html[data-design="neon"] .bet-grid .card{border-color:rgba(0,229,255,.18);box-shadow:0 0 0 1px rgba(0,229,255,.06), 0 0 24px rgba(0,229,255,.08), 0 8px 24px rgba(0,0,0,.4)}
+html[data-design="neon"] .bet-grid .card .team-orb{width:40px;height:40px;border-radius:8px;font-size:13px;border:1px solid rgba(0,229,255,.25);background:rgba(0,229,255,.08);box-shadow:0 0 10px rgba(0,229,255,.18)}
+html[data-design="neon"] .bet-grid .card .odds-pill{background:rgba(0,229,255,.10);color:#00e5ff;border-color:rgba(0,229,255,.3);border-radius:6px;box-shadow:0 0 8px rgba(0,229,255,.15)}
+html[data-design="neon"] .bet-grid .card .vs-badge{background:rgba(255,45,149,.12);color:#ff7ab8;border-color:rgba(255,45,149,.3);border-radius:6px}
+html[data-design="midnight"] .bet-grid .card .team-orb{width:36px;height:36px;border-radius:8px;background:#141414;border-color:#1f1f1f;color:#fafafa;font-size:12px}
+html[data-design="midnight"] .bet-grid .card .odds-pill{background:#fff;color:#000;border-color:#fff;border-radius:6px;font-weight:800}
+html[data-design="midnight"] .bet-grid .card .vs-badge{background:#0a0a0a;color:#52525b;border-color:#1a1a1a}
+html[data-design="arctic"] .bet-grid .card .team-orb{width:40px;height:40px;border-radius:12px;background:#f1f5f9;border-color:#d6dde8;color:#1e293b;font-size:13px}
+html[data-design="arctic"] .bet-grid .card .odds-pill{background:#dbeafe;color:#1d4ed8;border-color:#bfdbfe;border-radius:999px}
+html[data-design="arctic"] .bet-grid .card .vs-badge{background:#f1f5f9;color:#64748b;border-color:#d6dde8}
+html[data-design="stadium"] .bet-grid .card{border-top:2px solid #facc15}
+html[data-design="stadium"] .bet-grid .card .team-orb{width:38px;height:38px;border-radius:50%;background:#24301e;border:1px solid rgba(250,204,21,.2);color:#fef08a;font-size:12px}
+html[data-design="stadium"] .bet-grid .card .odds-pill{background:#facc15;color:#0f1410;border-color:#facc15;border-radius:6px;font-weight:800}
+html[data-design="stadium"] .bet-grid .card .vs-badge{background:#0f1410;color:#facc15;border-color:rgba(250,204,21,.2)}
+
+/* Minimal: match cards clean white with subtle hover */
+html[data-design="minimal"] .bet-grid .card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08);transform:translateY(-1px)}
+
+/* ---------- Odds / numbers ---------- */
+.odds,.num{font-variant-numeric:tabular-nums}
+html[data-design="minimal"] .odds{color:#0ea5e9}
+html[data-design="sportsbook"] .odds{color:#f59e0b}
+html[data-design="neon"] .odds{color:#00e5ff}
+html[data-design="midnight"] .odds{color:#fafafa}
+html[data-design="arctic"] .odds{color:#2563eb}
+html[data-design="stadium"] .odds{color:#facc15}
+
+/* ---------- Orbs & pills ---------- */
+.team-orb{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--surface2);border:1px solid var(--line);font-weight:700;font-size:14px;flex-shrink:0}
+.pick-orb{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--surface2);border:1px solid var(--line);font-weight:700;font-size:13px;flex-shrink:0}
+.vs-badge{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--surface2);border:1px solid var(--line);color:var(--muted);font-size:12px;font-weight:700;flex-shrink:0}
+.odds-pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.22);color:var(--accent);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+html[data-design="glass"] .odds-pill{background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.30);color:#c4b5fd}
+html[data-design="sportsbook"] .odds-pill{background:#f59e0b;border-color:#f59e0b;color:#0b0f1e;border-radius:6px}
+
+/* ---------- Betting specific ---------- */
+.bet-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:12px}
+.pick-card{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--surface2);border:1px solid var(--line);cursor:pointer;transition:border-color .15s,background .15s}
+.pick-card:hover{border-color:rgba(255,255,255,.13)}
+.pick-card.selected{border-color:var(--accent);background:color-mix(in srgb, var(--accent) 10%, var(--surface2))}
+.bet-draw{text-align:center;padding:10px;border-radius:12px;border:1px dashed var(--line);color:var(--muted);font-size:13px;background:rgba(255,255,255,.02)}
+.bet-closed{padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--muted);font-size:13px;text-align:center}
 .bet-cta{width:100%;margin-top:4px}
 
-/* modal — NO SCROLL */
-.modal-overlay{
-  position:fixed;
-  inset:0;
-  z-index:50;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-}
-.modal-backdrop{
-  position:absolute;
-  inset:0;
-  background:rgba(3,6,18,.62);
-  backdrop-filter:blur(8px);
-  -webkit-backdrop-filter:blur(8px);
-}
-.modal-card{
-  position:relative;
-  width:100%;
-  max-width:520px;
-  max-height:none;
-  overflow:visible;
-  background:var(--surface);
-  border:1px solid rgba(255,255,255,.1);
-  border-radius:20px;
-  padding:22px;
-  box-shadow:0 24px 60px rgba(0,0,0,.5);
-}
-.modal-stats{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-  margin-top:14px;
-}
-.modal-stats > div{
-  padding:12px;
-  border-radius:12px;
-  background:var(--surface2);
-  border:1px solid var(--line);
-  text-align:center;
-}
+/* ---------- Modal ---------- */
+.modal-overlay{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-backdrop{position:absolute;inset:0;background:rgba(3,6,18,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.modal-card{position:relative;width:100%;max-width:520px;max-height:none;overflow:visible;background:var(--surface);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,.5);transition:all .25s}
+.modal-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.modal-stats > div{padding:12px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);text-align:center}
 .modal-stats dt{font-size:12px;color:var(--muted)}
 .modal-stats dd{font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+html[data-design="minimal"] .modal-card{background:#fff;border-color:#e2e8f0;box-shadow:0 20px 50px rgba(0,0,0,.12)}
+html[data-design="glass"] .modal-card{background:rgba(15,23,42,.72);border-color:rgba(255,255,255,.14);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+html[data-design="sportsbook"] .modal-card{background:#111827;border-color:#1e293b;border-radius:12px}
+html[data-design="neon"] .modal-card{background:#0a1628;border-color:rgba(0,229,255,.18);box-shadow:0 0 40px rgba(0,229,255,.12), 0 24px 60px rgba(0,0,0,.6)}
+html[data-design="midnight"] .modal-card{background:#0a0a0a;border-color:#1a1a1a;box-shadow:none;border-radius:12px}
+html[data-design="arctic"] .modal-card{background:#fff;border-color:#d6dde8;box-shadow:0 20px 50px rgba(15,23,42,.12);border-radius:16px}
+html[data-design="stadium"] .modal-card{background:#182018;border-color:rgba(250,204,21,.14);border-top:2px solid #facc15;border-radius:12px}
 
-/* responsive — navbar drawer + grids */
+/* ---------- Drawer responsive ---------- */
 @media (max-width:768px){
   .nav-inner{padding:0 14px;height:54px}
+  html[data-design="sportsbook"] .nav-inner{height:50px}
   .nav-links{display:none}
   .hamburger{display:inline-flex}
-  .drawer{
-    display:block;
-    position:fixed;
-    inset:0;
-    top:54px;
-    z-index:39;
-    pointer-events:none;
-  }
+  .drawer{display:block;position:fixed;inset:0;top:var(--nav-h);z-index:39;pointer-events:none}
   .drawer.open{pointer-events:auto}
-  .drawer-backdrop{
-    position:absolute;inset:0;
-    background:rgba(3,6,18,.48);
-    backdrop-filter:blur(3px);
-    -webkit-backdrop-filter:blur(3px);
-    opacity:0;transition:opacity .2s;
-  }
+  .drawer-backdrop{position:absolute;inset:0;background:rgba(3,6,18,.48);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;transition:opacity .2s}
   .drawer.open .drawer-backdrop{opacity:1}
-  .drawer-panel{
-    position:absolute;top:0;right:0;
-    width:min(300px,86vw);
-    height:calc(100dvh - 54px);
-    background:rgba(8,13,28,.98);
-    border-left:1px solid rgba(255,255,255,.08);
-    padding:14px;
-    display:flex;flex-direction:column;gap:6px;
-    overflow-y:auto;
-    transform:translateX(100%);
-    transition:transform .22s cubic-bezier(.32,.72,0,1);
-    box-shadow:-16px 0 40px rgba(0,0,0,.35);
-  }
+  .drawer-panel{position:absolute;top:0;right:0;width:min(300px,86vw);height:calc(100dvh - var(--nav-h));padding:14px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;transform:translateX(100%);transition:transform .22s cubic-bezier(.32,.72,0,1);box-shadow:-16px 0 40px rgba(0,0,0,.35)}
+  html[data-design="minimal"] .drawer-panel{background:#ffffff;border-left:1px solid #e2e8f0}
+  html[data-design="glass"] .drawer-panel{background:rgba(10,15,31,.92);backdrop-filter:blur(20px);border-left:1px solid rgba(255,255,255,.10)}
+  html[data-design="sportsbook"] .drawer-panel{background:#0b0f1e;border-left:1px solid #1e293b}
+  html[data-design="esports"] .drawer-panel{background:rgba(8,13,28,.98);border-left:1px solid rgba(255,255,255,.08)}
+  html[data-design="neon"] .drawer-panel{background:rgba(5,10,20,.96);backdrop-filter:blur(20px);border-left:1px solid rgba(0,229,255,.14)}
+  html[data-design="midnight"] .drawer-panel{background:#000;border-left:1px solid #1a1a1a}
+  html[data-design="arctic"] .drawer-panel{background:rgba(255,255,255,.96);backdrop-filter:blur(16px);border-left:1px solid #d6dde8}
+  html[data-design="stadium"] .drawer-panel{background:#0f1410;border-left:1px solid rgba(250,204,21,.14)}
   .drawer.open .drawer-panel{transform:translateX(0)}
   .drawer-panel .nav-link{width:100%;justify-content:flex-start;padding:11px 14px;font-size:14px}
   .drawer-panel .btn{width:100%;justify-content:center}
@@ -375,8 +492,9 @@ select.input{cursor:pointer}
   .gallery-grid{grid-template-columns:1fr}
   .features-grid{grid-template-columns:1fr}
   .contact-grid{grid-template-columns:1fr}
-  .bet-grid{grid-template-columns:1fr}
+  .bet-grid{grid-template-columns:1fr !important}
   .modal-stats{grid-template-columns:1fr 1fr}
   .hero{padding:40px 16px}
+  .hero-grid{grid-template-columns:1fr !important}
   .container{padding:16px}
 }

@@ -106,6 +106,7 @@ create table public.site_settings (
   gallery    jsonb default '[]'::jsonb,
   games      jsonb default '[{"name":"FC 25","icon":"⚽"},{"name":"FC 26","icon":"⚽"},{"name":"Valorant","icon":"🎯"},{"name":"DOTA 2","icon":"⚔️"},{"name":"LoL","icon":"🏰"},{"name":"CoD","icon":"🔫"},{"name":"FIFA","icon":"⚽"}]'::jsonb,
   contact    jsonb default '{"address":"","phone1":"","phone2":"","hours":"","email":""}'::jsonb,
+  design     text default 'minimal',
   updated_at timestamptz default now(),
   updated_by uuid
 );
@@ -700,3 +701,9 @@ grant execute on function public.charge_wallet(uuid, bigint) to authenticated;
 alter table public.site_settings add column if not exists games jsonb default '[{"name":"FC 25","icon":"⚽"},{"name":"FC 26","icon":"⚽"},{"name":"Valorant","icon":"🎯"},{"name":"DOTA 2","icon":"⚔️"},{"name":"LoL","icon":"🏰"},{"name":"CoD","icon":"🔫"},{"name":"FIFA","icon":"⚽"}]'::jsonb;
 update public.site_settings set games='[{"name":"FC 25","icon":"⚽"},{"name":"FC 26","icon":"⚽"},{"name":"Valorant","icon":"🎯"},{"name":"DOTA 2","icon":"⚔️"},{"name":"LoL","icon":"🏰"},{"name":"CoD","icon":"🔫"},{"name":"FIFA","icon":"⚽"}]'::jsonb where games is null;
 insert into public.site_settings (id) values (1) on conflict (id) do nothing;
+
+alter table public.site_settings add column if not exists design text default 'minimal';
+do $$ begin
+  alter publication supabase_realtime add table public.site_settings;
+exception when duplicate_object then null;
+end $$;
