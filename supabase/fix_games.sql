@@ -1,0 +1,3 @@
+alter table public.site_settings add column if not exists games jsonb not null default '[{"name":"FC 25","icon":"⚽"},{"name":"FC 26","icon":"⚽"},{"name":"Valorant","icon":"🎯"},{"name":"DOTA 2","icon":"⚔️"},{"name":"LoL","icon":"🏰"},{"name":"CoD","icon":"🔫"},{"name":"FIFA","icon":"⚽"}]'::jsonb;
+-- backfill existing row if column was just added (default only applies to new rows on some pg versions)
+update public.site_settings set games = '[{"name":"FC 25","icon":"⚽"},{"name":"FC 26","icon":"⚽"},{"name":"Valorant","icon":"🎯"},{"name":"DOTA 2","icon":"⚔️"},{"name":"LoL","icon":"🏰"},{"name":"CoD","icon":"🔫"},{"name":"FIFA","icon":"⚽"}]'::jsonb where id = 1 and (games is null or games::text = 'null' or jsonb_array_length(games) = 0);

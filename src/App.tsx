@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Navbar from './components/Navbar'
@@ -8,6 +9,15 @@ import Wallet from './pages/Wallet'
 import Admin from './pages/Admin'
 import AdminWithdrawals from './pages/AdminWithdrawals'
 import AdminHouse from './pages/AdminHouse'
+import AdminSettings from './pages/AdminSettings'
+
+function applyFont(font: string){
+  document.documentElement.setAttribute('data-font', font)
+  // Vazirmatn is default; allow switching via CSS variable
+  if(font === 'vazir') document.body.style.fontFamily = "'Vazirmatn',system-ui,sans-serif"
+  else if(font === 'samim') document.body.style.fontFamily = "'Samim',system-ui,sans-serif"
+  else document.body.style.fontFamily = "'Vazirmatn',system-ui,sans-serif"
+}
 
 function Guard({ children, admin=false }: { children: React.ReactNode; admin?: boolean }) {
   const { userId, isAdmin, loading } = useAuth() as any
@@ -26,6 +36,17 @@ function Guard({ children, admin=false }: { children: React.ReactNode; admin?: b
 }
 
 export default function App(){
+  useEffect(()=>{
+    const saved = localStorage.getItem('site_font')
+    if(saved) applyFont(saved)
+    const handler = (e: Event)=>{
+      const detail = (e as CustomEvent).detail
+      if(detail) applyFont(detail)
+    }
+    window.addEventListener('site-font', handler as EventListener)
+    return ()=> window.removeEventListener('site-font', handler as EventListener)
+  },[])
+
   return (
     <AuthProvider>
       <BrowserRouter>
@@ -38,6 +59,7 @@ export default function App(){
           <Route path="/admin" element={<Guard admin><Admin/></Guard>}/>
           <Route path="/admin/withdrawals" element={<Guard admin><AdminWithdrawals/></Guard>}/>
           <Route path="/admin/house" element={<Guard admin><AdminHouse/></Guard>}/>
+          <Route path="/admin/settings" element={<Guard admin><AdminSettings/></Guard>}/>
           <Route path="*" element={<Navigate to="/" replace/>}/>
         </Routes>
       </BrowserRouter>

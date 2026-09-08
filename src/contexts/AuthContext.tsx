@@ -19,8 +19,8 @@ export const AuthProvider: React.FC<{children:React.ReactNode}> = ({children})=>
   const [isAdmin,setIsAdmin]=useState(false)
   const [loading,setLoading]=useState(true)
 
-  const load = async()=>{
-    setLoading(true)
+  const load = async(silent=false)=>{
+    if(!silent) setLoading(true)
     const { data:{ session } } = await supabase.auth.getSession()
     const uid = session?.user?.id ?? null
     setUserId(uid); setEmail(session?.user?.email ?? null)
@@ -32,17 +32,12 @@ export const AuthProvider: React.FC<{children:React.ReactNode}> = ({children})=>
       const { data: adm } = await supabase.rpc('is_admin')
       setIsAdmin(!!adm || !!(data as any)?.is_admin)
     } else { setProfile(null); setIsAdmin(false) }
-    setLoading(false)
+    if(!silent) setLoading(false)
   }
   useEffect(()=>{
     load()
-    const { data:sub } = supabase.auth.onAuthStateChange(()=>load())
-    // re-fetch on focus — fixes "made admin in SQL but still not admin" without logout
-    const onFocus = ()=> load()
-    window.addEventListener('focus', onFocus)
-    const onVis = ()=> { if(document.visibilityState==='visible') load() }
-    document.addEventListener('visibilitychange', onVis)
-    return ()=>{ sub.subscription.unsubscribe(); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onVis) }
+    const { data:sub } = supabase.auth.onAuthStateChange(()=>load(true))
+    return ()=>{ sub.subscription.unsubscribe() }
   },[])
 
   const signOut = async()=>{ await supabase.auth.signOut(); setProfile(null); setUserId(null); setIsAdmin(false) }

@@ -2,7 +2,23 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, type Match } from '../lib/supabase'
 
-const GALLERY = [
+const FALLBACK_HERO = {
+  badge: 'گیم‌نت حرفه‌ای · تهران',
+  title1: 'بازی کن، رقابت کن،',
+  title2: 'برنده شو.',
+  desc: 'GAMEVERSE — ۲۰ سیستم RTX 4070، سالن VIP، مسابقات هفتگی با جایزه نقدی. شرط‌بندی امن روی مسابقات داخلی با کیف پول تومانی و تسویه آنی.',
+  stats: [
+    { label: 'سیستم گیمینگ', value: '۲۰' },
+    { label: 'مانیتور', value: '144Hz' },
+    { label: 'اینترنت', value: '۱Gbps' },
+  ],
+}
+const FALLBACK_FEATURES = [
+  { title: 'سیستم‌های حرفه‌ای', desc: 'RTX 4070 · i7-13700 · 32GB RAM · SSD NVMe', icon: '🖥️' },
+  { title: 'مسابقات و شرط‌بندی', desc: 'هر هفته تورنمنت با ضرایب زنده و کیف پول تومانی', icon: '🏆' },
+  { title: 'کافه و لانژ', desc: 'نوشیدنی گرم/سرد، اسنک، فضای کار اشتراکی', icon: '☕' },
+]
+const FALLBACK_GALLERY = [
   { title:'FC 25', tag:'فوتبال', img:'https://images.unsplash.com/photo-1493711662062-fa541adb3fc8?w=600&q=80' },
   { title:'Valorant', tag:'شوتر', img:'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=600&q=80' },
   { title:'Call of Duty', tag:'شوتر', img:'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&q=80' },
@@ -10,21 +26,52 @@ const GALLERY = [
   { title:'FIFA Online', tag:'ورزشی', img:'https://images.unsplash.com/photo-1574629810360-214f3774381b?w=600&q=80' },
   { title:'DOTA 2', tag:'MOBA', img:'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&q=80' },
 ]
+const FALLBACK_CONTACT = {
+  address: 'تهران، میدان ولیعصر، خیابان کریم‌خان، پلاک ۱۲۳',
+  phone1: '۰۲۱-۸۸۸۸۱۲۳۴',
+  phone2: '۰۹۱۲-۳۴۵۶۷۸۹',
+  hours: 'هر روز ۱۰:۰۰ تا ۰۲:۰۰ بامداد',
+  email: 'info@gamenet.ir',
+}
+const FALLBACK_GAMES: { name: string; icon: string }[] = [
+  { name: 'FC 25', icon: '⚽' },
+  { name: 'Valorant', icon: '🎯' },
+  { name: 'DOTA 2', icon: '⚔️' },
+  { name: 'LoL', icon: '🏰' },
+  { name: 'CoD', icon: '🔫' },
+]
 
 export default function Landing(){
   const [matches,setMatches]=useState<Match[]>([])
-  useEffect(()=>{ supabase.from('matches').select('*').eq('status','upcoming').order('starts_at').limit(3).then(r=> setMatches((r.data as Match[])||[])) },[])
+  const [hero,setHero]=useState(FALLBACK_HERO)
+  const [features,setFeatures]=useState(FALLBACK_FEATURES)
+  const [gallery,setGallery]=useState(FALLBACK_GALLERY)
+  const [contact,setContact]=useState(FALLBACK_CONTACT)
+  const [games,setGames]=useState(FALLBACK_GAMES)
+
+  useEffect(()=>{
+    supabase.from('matches').select('*').eq('status','upcoming').order('starts_at').limit(3).then(r=> setMatches((r.data as Match[])||[]))
+    supabase.from('site_settings').select('*').eq('id',1).single().then(({ data })=>{
+      if(data){
+        if(data.hero) setHero(data.hero)
+        if(Array.isArray(data.features) && data.features.length) setFeatures(data.features)
+        if(Array.isArray(data.gallery) && data.gallery.length) setGallery(data.gallery)
+        if(data.contact) setContact(data.contact)
+        if(Array.isArray(data.games) && data.games.length) setGames(data.games)
+      }
+    })
+  },[])
 
   return (
     <>
       <section className="hero" style={{padding:'56px 0 36px'}}>
         <div className="container hero-grid">
           <div>
-            <span className="badge">🎮 گیم‌نت حرفه‌ای · تهران</span>
+            <span className="badge">{hero.badge}</span>
             <h1 className="hero-title">
-              بازی کن، رقابت کن،<br/><span style={{background:'linear-gradient(90deg,var(--accent),var(--accent2))', WebkitBackgroundClip:'text', color:'transparent'}}>برنده شو.</span>
+              {hero.title1}<br/><span style={{background:'linear-gradient(90deg,var(--accent),var(--accent2))', WebkitBackgroundClip:'text', color:'transparent'}}>{hero.title2}</span>
             </h1>
-            <p style={{color:'var(--muted)',maxWidth:520,fontSize:15}}>GAMEVERSE — ۲۰ سیستم RTX 4070، سالن VIP، مسابقات هفتگی با جایزه نقدی. شرط‌بندی امن روی مسابقات داخلی با کیف پول تومانی و تسویه آنی.</p>
+            <p style={{color:'var(--muted)',maxWidth:520,fontSize:15}}>{hero.desc}</p>
             <div style={{display:'flex',gap:10,marginTop:18,flexWrap:'wrap'}}>
               <Link className="btn btn-primary" to="/betting">ورود به شرط‌بندی →</Link>
               <a className="btn btn-ghost" href="#contact">رزرو جایگاه</a>
@@ -45,10 +92,25 @@ export default function Landing(){
             ))}
             <div className="divider" />
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,textAlign:'center'}}>
-              <div><div style={{fontWeight:900}}>۲۰</div><div style={{fontSize:11,color:'var(--muted)'}}>سیستم گیمینگ</div></div>
-              <div><div style={{fontWeight:900}}>144Hz</div><div style={{fontSize:11,color:'var(--muted)'}}>مانیتور</div></div>
-              <div><div style={{fontWeight:900}}>۱Gbps</div><div style={{fontSize:11,color:'var(--muted)'}}>اینترنت</div></div>
+              {hero.stats.map((s,i)=>(
+                <div key={i}><div style={{fontWeight:900}}>{s.value}</div><div style={{fontSize:11,color:'var(--muted)'}}>{s.label}</div></div>
+              ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section style={{padding:'28px 0'}}>
+        <div className="container">
+          <h2 style={{fontWeight:900,marginBottom:6}}>ویژگی‌ها</h2>
+          <div className="features-grid">
+            {features.map((f,i)=>(
+              <div key={i} className="card" style={{padding:16}}>
+                <div style={{fontSize:22}}>{f.icon}</div>
+                <div style={{fontWeight:800,marginTop:8}}>{f.title}</div>
+                <div style={{fontSize:12,color:'var(--muted)',marginTop:4}}>{f.desc}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -58,7 +120,7 @@ export default function Landing(){
           <h2 style={{fontWeight:900,marginBottom:6}}>گالری بازی‌ها</h2>
           <p style={{color:'var(--muted)',fontSize:13,marginBottom:14}}>روی تمام عناوین روز — از FC 25 تا Valorant — با اکانت پرمیوم بازی کنید.</p>
           <div className="gallery-grid">
-            {GALLERY.map(g=>(
+            {gallery.map(g=>(
               <div key={g.title} className="card" style={{overflow:'hidden'}}>
                 <img src={g.img} alt={g.title} style={{width:'100%',height:110,objectFit:'cover',display:'block'}} loading="lazy"/>
                 <div style={{padding:'10px 12px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
@@ -67,50 +129,32 @@ export default function Landing(){
               </div>
             ))}
           </div>
+          {games.length>0 && (
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginTop:14}}>
+              {games.map((g,i)=>(
+                <span key={i} className="badge">{g.icon} {g.name}</span>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
-      <section style={{padding:'10px 0 28px'}}>
-        <div className="container features-grid">
-          {[
-            {t:'سیستم‌های حرفه‌ای',d:'RTX 4070 · i7-13700 · 32GB RAM · SSD NVMe'},
-            {t:'مسابقات و شرط‌بندی',d:'هر هفته تورنمنت با ضرایب زنده و کیف پول تومانی'},
-            {t:'کافه و لانژ',d:'نوشیدنی گرم/سرد، اسنک، فضای کار اشتراکی'},
-          ].map(f=>(
-            <div key={f.t} className="card" style={{padding:16}}>
-              <div style={{fontWeight:800,marginBottom:4}}>{f.t}</div>
-              <div style={{color:'var(--muted)',fontSize:13}}>{f.d}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="contact" style={{padding:'8px 0 32px'}}>
-        <div className="container card contact-grid" style={{padding:18}}>
-          <div>
-            <h3 style={{fontWeight:900,marginBottom:8}}>تماس و آدرس</h3>
-            <div style={{color:'var(--muted)',fontSize:13,lineHeight:1.9}}>
-              📍 تهران، میدان ولیعصر، خیابان کریم‌خان، پلاک ۱۲۳<br/>
-              📞 ۰۲۱-۸۸۸۸۱۲۳۴ · ۰۹۱۲-۳۴۵۶۷۸۹<br/>
-              🕘 هر روز ۱۰:۰۰ تا ۰۲:۰۰ بامداد<br/>
-              ✉️ info@gamverse.ir
-            </div>
-            <div style={{display:'flex',gap:8,marginTop:12,flexWrap:'wrap'}}>
-              <a className="btn btn-primary btn-sm" href="tel:+982188881234">تماس</a>
-              <a className="btn btn-ghost btn-sm" href="https://maps.google.com" target="_blank" rel="noreferrer">مسیریابی</a>
+      <section id="contact" style={{padding:'10px 0 28px'}}>
+        <div className="container contact-grid">
+          <div className="card" style={{padding:16}}>
+            <h3 style={{fontWeight:800}}>تماس با ما</h3>
+            <div style={{fontSize:13,color:'var(--muted)',marginTop:8,lineHeight:1.8}}>
+              <div>📍 {contact.address}</div>
+              <div>📞 {contact.phone1} {contact.phone2 ? '· '+contact.phone2 : ''}</div>
+              <div>⏰ {contact.hours}</div>
+              <div>✉️ {contact.email}</div>
             </div>
           </div>
-          <div style={{background:'#0d1326',borderRadius:12,border:'1px solid var(--line)',display:'grid',placeItems:'center',minHeight:150,color:'var(--muted)',fontSize:13,padding:12}}>
-            نقشه — iframe گوگل‌مپ را اینجا جایگزین کنید
+          <div className="card" style={{padding:16,display:'grid',placeItems:'center',color:'var(--muted)',fontSize:13}}>
+            نقشه — میدان ولیعصر، تهران
           </div>
         </div>
       </section>
-
-      <footer style={{borderTop:'1px solid var(--line)',padding:'14px 0',color:'var(--muted)',fontSize:12}}>
-        <div className="container" style={{display:'flex',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
-          <span>© 2026 GAMEVERSE — همه حقوق محفوظ است.</span>
-        </div>
-      </footer>
     </>
   )
 }
