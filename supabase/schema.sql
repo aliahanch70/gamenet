@@ -116,7 +116,9 @@ alter table public.site_settings enable row level security;
 
 -- profiles
 create policy "profiles read own" on public.profiles for select using (id = auth.uid());
-create policy "profiles update own" on public.profiles for update using (id = auth.uid());
+create policy "profiles update own" on public.profiles for update using (id = auth.uid()) with check (id = auth.uid() and balance = (select p.balance from public.profiles p where p.id = auth.uid()) and is_admin = (select p.is_admin from public.profiles p where p.id = auth.uid()));
+create or replace function public.prevent_profile_hack() returns trigger language plpgsql security definer set search_path = public as $$ begin if new.id is distinct from old.id or new.is_admin is distinct from old.is_admin then if not public.is_admin() then raise exception 'تغییر موجودی یا دسترسی مجاز نیست'; end if; end if; return new; end; $$; -- ponytail: balance via RLS WITH CHECK only; trigger keeps is_admin/id — per-row RPC balance updates must not be blocked
+drop trigger if exists trg_prevent_profile_hack on public.profiles; create trigger trg_prevent_profile_hack before update on public.profiles for each row execute function public.prevent_profile_hack();
 create policy "profiles admin read all" on public.profiles for select using (public.is_admin());
 create policy "profiles admin update all" on public.profiles for update using (public.is_admin());
 
@@ -574,7 +576,7 @@ begin
 end;
 $$;
 
-create or replace function public.approve_withdrawal(p_wd_id uuid)
+create or replace function public.approve_withdrawal(p_withdrawal_id uuid)
 returns void
 language plpgsql
 security definer
@@ -586,21 +588,19 @@ begin
     raise exception 'دسترسی غیرمجاز';
   end if;
 
-  select * into v_wd from public.withdrawals where id = p_wd_id and status = 'pending';
+  select * into v_wd from public.withdrawals where id = p_withdrawal_id and status = 'pending';
   if not found then
     raise exception 'درخواست یافت نشد یا قبلاً پردازش شده';
   end if;
 
-  update public.withdrawals set status = 'approved', decided_at = now(), decided_by = auth.uid() where id = p_wd_id;
+  update public.withdrawals set status = 'approved', decided_at = now(), decided_by = auth.uid() where id = p_withdrawal_id;
 
   insert into public.notifications (user_id, title, body)
   values (v_wd.user_id, '✅ برداشت تأیید شد', 'درخواست برداشت شما به مبلغ ' || to_char(v_wd.amount, 'FM999,999,999') || ' تومان تأیید و پرداخت شد.');
 end;
 $$;
 
-create or replace function public.reject_withdrawal(
-  p_wd_id uuid,
-  p_reason text
+create or replace function public.reject_withdrawal(p_withdrawal_id uuid, p_reason text
 )
 returns void
 language plpgsql
@@ -613,12 +613,12 @@ begin
     raise exception 'دسترسی غیرمجاز';
   end if;
 
-  select * into v_wd from public.withdrawals where id = p_wd_id and status = 'pending';
+  select * into v_wd from public.withdrawals where id = p_withdrawal_id and status = 'pending';
   if not found then
     raise exception 'درخواست یافت نشد یا قبلاً پردازش شده';
   end if;
 
-  update public.withdrawals set status = 'rejected', note = p_reason, decided_at = now(), decided_by = auth.uid() where id = p_wd_id;
+  update public.withdrawals set status = 'rejected', note = p_reason, decided_at = now(), decided_by = auth.uid() where id = p_withdrawal_id;
 
   -- Refund
   update public.profiles set balance = balance + v_wd.amount where id = v_wd.user_id;

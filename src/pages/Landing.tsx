@@ -48,9 +48,10 @@ export default function Landing(){
   const [gallery,setGallery]=useState(FALLBACK_GALLERY)
   const [contact,setContact]=useState(FALLBACK_CONTACT)
   const [games,setGames]=useState(FALLBACK_GAMES)
+  const [matchesLoading,setMatchesLoading]=useState(true)
 
   useEffect(()=>{
-    supabase.from('matches').select('*').eq('status','upcoming').order('starts_at').limit(3).then(r=> setMatches((r.data as Match[])||[]))
+    supabase.from('matches').select('*').eq('status','upcoming').order('starts_at').limit(3).then(r=> { setMatches((r.data as Match[])||[]); setMatchesLoading(false) })
     supabase.from('site_settings').select('*').eq('id',1).single().then(({ data })=>{
       if(data){
         if(data.hero) setHero(data.hero)
@@ -84,7 +85,7 @@ export default function Landing(){
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
               <b>مسابقات پیش‌رو</b><Link to="/betting" style={{fontSize:12,color:'var(--accent)'}}>همه →</Link>
             </div>
-            {matches.length===0 ? <p style={{color:'var(--muted)',fontSize:13}}>در حال بارگذاری…</p> : matches.map(m=>(
+            {matchesLoading ? <div style={{display:'grid',gap:8}}>{[0,1,2].map(i=> <div key={i} className="skeleton" style={{height:52,borderRadius:12}} />)}</div> : matches.length===0 ? <p style={{color:'var(--muted)',fontSize:13}}>مسابقه‌ای یافت نشد.</p> : matches.map(m=>(
               <div key={m.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 12px',borderRadius:12,background:'rgba(255,255,255,.06)',marginBottom:8,gap:8}}>
                 <div style={{minWidth:0}}><div style={{fontWeight:700,fontSize:13,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.team_a} — {m.team_b}</div><div style={{fontSize:11,color:'var(--muted)'}}>{m.game} · {new Date(m.starts_at).toLocaleString('fa-IR')}</div></div>
                 <span className="odds" style={{fontSize:12,flexShrink:0}}>{Number(m.odds_a).toFixed(2)} / {Number(m.odds_b).toFixed(2)}</span>

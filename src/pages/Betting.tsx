@@ -259,13 +259,16 @@ export default function Betting() {
   const [gameFilter, setGameFilter] = useState<string>('all')
   const [betFilter, setBetFilter] = useState<'all'|'pending'|'won'|'lost'|'refunded'>('all')
   const [receipt, setReceipt] = useState<Receipt|null>(null)
+  const [loading, setLoading] = useState(true)
 
   const load = async () => {
+    setLoading(true)
     const { data: ms } = await supabase.from('matches').select('*').order('starts_at', { ascending: true })
     setMatches((ms as Match[]) || [])
     if (!userId) { setBets([]); return }
     const { data: bs } = await supabase.from('bets').select('*, matches(*)').eq('user_id', userId).order('created_at', { ascending: false }).limit(50)
     setBets((bs as any[]) || [])
+    setLoading(false)
   }
 
   const loadIcons = async () => {
@@ -365,12 +368,12 @@ export default function Betting() {
       )}
 
       <h3 style={{ fontWeight: 800, marginTop: 18, marginBottom: 10, fontSize: 15 }}>✅ قابل پیش‌بینی ({openF.length}{gameFilter!=='all'?` / ${open.length}`:''})</h3>
-      {openF.length === 0 ? <div style={{ color: 'var(--muted)', fontSize: 13, padding: '12px 0' }}>{open.length===0?'مسابقه‌ی بازی وجود ندارد.':'در این بازی مسابقه‌ای نیست.'}</div> :
+      {loading ? <div className="bet-grid">{[0,1,2,3].map(i=> <div key={i} className="skeleton skeleton-card" />)}</div> : openF.length === 0 ? <div style={{ color: 'var(--muted)', fontSize: 13, padding: '12px 0' }}>{open.length===0?'مسابقه‌ی بازی وجود ندارد.':'در این بازی مسابقه‌ای نیست.'}</div> :
         <div className="bet-grid">{openF.map(m => <MatchCard key={m.id} m={m} icon={gameIcons[m.game] || gameIcons['default'] || FALLBACK_ICONS['default']} onPick={p => setModal({ m, pick: p })} />)}</div>
       }
 
       <h3 style={{ fontWeight: 800, marginTop: 20, marginBottom: 10, fontSize: 15 }}>🔒 پیش‌بینی بسته شده ({closedF.length}{gameFilter!=='all'?` / ${closed.length}`:''})</h3>
-      {closedF.length === 0 ? <div style={{ color: 'var(--muted)', fontSize: 13 }}>موردی نیست.</div> :
+      {loading ? <div className="bet-grid">{[0,1].map(i=> <div key={i} className="skeleton skeleton-card" style={{height:110}} />)}</div> : closedF.length === 0 ? <div style={{ color: 'var(--muted)', fontSize: 13 }}>موردی نیست.</div> :
         <div className="bet-grid">{closedF.map(m => <MatchCard key={m.id} m={m} icon={gameIcons[m.game] || gameIcons['default'] || FALLBACK_ICONS['default']} onPick={p => setModal({ m, pick: p })} />)}</div>
       }
 
@@ -387,7 +390,7 @@ export default function Betting() {
           </div>
         )}
       </div>
-      {filteredBets.length === 0 ? <div className="card" style={{ padding: '18px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 13, marginTop:10 }}>{bets.length===0?'هنوز شرطی ثبت نکرده‌اید — از بالا یک مسابقه را انتخاب کنید.':'در این فیلتر شرطی نیست.'}</div> :
+      {loading ? <div style={{display:'grid',gap:10,marginTop:10}}>{[0,1,2].map(i=> <div key={i} className="skeleton skeleton-row" />)}</div> : filteredBets.length === 0 ? <div className="card" style={{ padding: '18px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 13, marginTop:10 }}>{bets.length===0?'هنوز شرطی ثبت نکرده‌اید — از بالا یک مسابقه را انتخاب کنید.':'در این فیلتر شرطی نیست.'}</div> :
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 10, marginTop:10 }}>
           {filteredBets.map(b => {
             const canCancel = b.status === 'pending' && (b as any).matches?.status === 'upcoming'

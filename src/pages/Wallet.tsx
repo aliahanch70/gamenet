@@ -13,15 +13,18 @@ export default function Wallet(){
   const [wdBusy,setWdBusy]=useState(false)
   const [msg,setMsg]=useState<string|null>(null)
   const [txFilter,setTxFilter]=useState<'all'|'charge'|'bet'|'win'|'refund'|'withdrawal'>('all')
+  const [txLoading,setTxLoading]=useState(true)
 
   const load = async()=>{
     if(!userId) return
+    setTxLoading(true)
     const { data: t } = await supabase.from('transactions').select('*').eq('user_id', userId).order('created_at',{ascending:false}).limit(50)
     setTxs((t as Tx[])||[])
     const { data: w } = await supabase.from('withdrawals').select('*').eq('user_id', userId).order('created_at',{ascending:false}).limit(20)
     setWds((w as Withdrawal[])||[])
+    setTxLoading(false)
   }
-  useEffect(()=>{ if(userId) load() },[userId])
+  useEffect(()=>{ if(userId) load(); else setTxLoading(false) },[userId])
 
   const submitWd = async(e:React.FormEvent)=>{
     e.preventDefault(); setMsg(null)
@@ -61,7 +64,7 @@ export default function Wallet(){
         </form>
       </div>
 
-      {wds.length>0 && (
+      {txLoading ? <div style={{marginTop:14,display:'grid',gap:8}}>{[0,1].map(i=> <div key={i} className="skeleton skeleton-row" />)}</div> : wds.length>0 && (
         <div style={{marginTop:14}}>
           <h3 style={{fontWeight:800,fontSize:15,marginBottom:8}}>درخواست‌های من</h3>
           <div style={{display:'grid',gap:8}}>
@@ -90,7 +93,7 @@ export default function Wallet(){
           </div>
         )}
       </div>
-      {(() => { const filtered = txFilter==='all'? txs : txs.filter(x=> x.type===txFilter); return filtered.length===0 ? <div style={{color:'var(--muted)',fontSize:13,marginTop:10}}>{txs.length===0?'تراکنشی نیست.':'در این فیلتر تراکنشی نیست.'}</div> :
+      {txLoading ? <div style={{marginTop:10,display:'grid',gap:8}}>{[0,1,2,3].map(i=> <div key={i} className="skeleton skeleton-row" />)}</div> : (() => { const filtered = txFilter==='all'? txs : txs.filter(x=> x.type===txFilter); return filtered.length===0 ? <div style={{color:'var(--muted)',fontSize:13,marginTop:10}}>{txs.length===0?'تراکنشی نیست.':'در این فیلتر تراکنشی نیست.'}</div> :
         <div className="card" style={{overflow:'hidden'}}>
           <div className="table-wrap" style={{margin:0,padding:0}}>
           <table className="table">

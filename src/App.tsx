@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import Navbar from './components/Navbar'
@@ -20,9 +20,11 @@ function applyFont(font: string){
   else document.body.style.fontFamily = "'Vazirmatn',system-ui,sans-serif"
 }
 
+function ScrollToTop(){ const {pathname}=useLocation(); useEffect(()=>{ window.scrollTo({top:0,behavior:'instant' as any}); try{ (window as any).scrollTo({top:0,left:0,behavior:'instant'}) }catch{} },[pathname]); return null }
+
 function Guard({ children, admin=false }: { children: React.ReactNode; admin?: boolean }) {
   const { userId, isAdmin, loading } = useAuth() as any
-  if (loading) return <div className="container" style={{padding:40,color:'var(--muted)'}}>در حال بارگذاری…</div>
+  if (loading) return <div className="container" style={{padding:'20px 14px',minHeight:'60vh'}}><div className="skeleton" style={{height:22,width:120,marginBottom:14}}/><div style={{display:'grid',gap:10}}><div className="skeleton skeleton-card"/><div className="skeleton skeleton-card" style={{height:120}}/></div></div>
   if (!userId) return <Navigate to="/auth" replace />
   if (admin && !isAdmin) return (
     <div className="container" style={{padding:'32px 20px',maxWidth:560}}>
@@ -52,6 +54,7 @@ export default function App(){
     <AuthProvider>
       <ThemeProvider>
       <BrowserRouter>
+        <ScrollToTop/>
         <Navbar/>
         <Routes>
           <Route path="/" element={<Landing/>}/>

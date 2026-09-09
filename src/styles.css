@@ -23,7 +23,8 @@
 *::-webkit-scrollbar{width:6px;height:6px}
 *::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:999px}
 *::-webkit-scrollbar-track{background:transparent}
-html{scroll-behavior:smooth;transition:background .25s,color .25s}
+html{scroll-behavior:smooth;transition:background .25s,color .25s;scrollbar-gutter:stable}
+@supports not (scrollbar-gutter:stable){html{overflow-y:scroll}}
 body{font-family:var(--site-font);background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased;transition:background .25s,color .25s}
 a{color:inherit;text-decoration:none}
 img{display:block;max-width:100%}
@@ -465,6 +466,16 @@ html[data-design="neon"] .modal-card{background:#0a1628;border-color:rgba(0,229,
 html[data-design="midnight"] .modal-card{background:#0a0a0a;border-color:#1a1a1a;box-shadow:none;border-radius:12px}
 html[data-design="arctic"] .modal-card{background:#fff;border-color:#d6dde8;box-shadow:0 20px 50px rgba(15,23,42,.12);border-radius:16px}
 html[data-design="stadium"] .modal-card{background:#182018;border-color:rgba(250,204,21,.14);border-top:2px solid #facc15;border-radius:12px}
+
+/* ---------- Skeleton / CLS fix ---------- */
+.skeleton{background:linear-gradient(90deg,var(--surface2) 25%,color-mix(in srgb,var(--surface2) 85%,var(--text) 15%) 37%,var(--surface2) 63%);background-size:400% 100%;animation:skeleton-shimmer 1.3s ease infinite;border-radius:10px}
+@keyframes skeleton-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.skeleton-card{height:148px;border-radius:var(--radius);border:1px solid var(--line)}
+.skeleton-row{height:52px;border-radius:12px;border:1px solid var(--line)}
+.skeleton-line{height:12px;border-radius:999px}
+html[data-design="minimal"] .skeleton{background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%);background-size:400% 100%}
+html[data-design="arctic"] .skeleton{background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%);background-size:400% 100%}
+html[data-design="midnight"] .skeleton{background:linear-gradient(90deg,#141414 25%,#1f1f1f 37%,#141414 63%);background-size:400% 100%}
 
 /* ---------- Drawer responsive ---------- */
 @media (max-width:768px){

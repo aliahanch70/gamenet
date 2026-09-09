@@ -26,14 +26,14 @@ export default function AdminWithdrawals(){
   const approve = async(id:string)=>{
     if(!confirm('تایید برداشت — واریز انجام شد؟')) return
     setBusy(id)
-    const { error } = await supabase.rpc('approve_withdrawal',{ p_id: id })
+    const { error } = await supabase.rpc('approve_withdrawal',{ p_withdrawal_id: id })
     if(error) setMsg(error.message); else { setMsg('✅ تایید شد'); await load() }
     setBusy(null)
   }
   const reject = async(id:string)=>{
     const reason = prompt('دلیل رد (اختیاری):') || ''
     setBusy(id)
-    const { error } = await supabase.rpc('reject_withdrawal',{ p_id:id, p_reason: reason })
+    const { error } = await supabase.rpc('reject_withdrawal',{ p_withdrawal_id:id, p_reason: reason })
     if(error) setMsg(error.message); else { setMsg('↩️ رد شد — مبلغ برگشت خورد'); await load() }
     setBusy(null)
   }
