@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { supabase, type Match, type Profile } from '../lib/supabase'
 
 type Exposure = Record<string,{ total:number; a:{amt:number;pay:number}; b:{amt:number;pay:number}; d:{amt:number;pay:number} }>
-
 const FONT_OPTS = [
   { value: 'vazir', label: 'وزیرمتن (پیش‌فرض)' },
   { value: 'samim', label: 'صمیم' },
@@ -28,14 +27,12 @@ function toJalaali(gy:number,gm:number,gd:number){
   const d=new Date(gy,gm-1,gd)
   const f=new Intl.DateTimeFormat('en-u-ca-persian',{year:'numeric',month:'numeric',day:'numeric'}).format(d)
   const nums=(f.match(/\d+/g)||[]).map(Number)
-  // en-u-ca-persian => M/D/Y (6/17/1405), fa variant => Y/M/D (1405/6/17)
   let jy:number, jm:number, jd:number
   if(nums.length===3 && nums[0]>1000){ jy=nums[0]; jm=nums[1]; jd=nums[2] }
   else { jm=nums[0]||0; jd=nums[1]||0; jy=nums[2]||0 }
   return {jy,jm,jd}
 }
 function toGregorian(jy:number,jm:number,jd:number){
-  // ponytail: Intl binary search — no extra dep, O(log n)
   let lo=new Date(2020,0,1).getTime(), hi=new Date(2035,11,31).getTime()
   for(let i=0;i<40;i++){
     const mid=new Date((lo+hi)/2)
@@ -51,6 +48,37 @@ function toGregorian(jy:number,jm:number,jd:number){
   const d=new Date(lo); return [d.getFullYear(),d.getMonth()+1,d.getDate()] as [number,number,number]
 }
 function jDaysInMonth(jy:number,jm:number){ if(jm<=6) return 31; if(jm<=11) return 30; return jalCal(jy).leap===0?30:29 }
+
+/* ---------- styles ---------- */
+const labelStyle: React.CSSProperties = {
+  fontSize: 11, fontWeight: 800, color: 'var(--muted)', letterSpacing: '.02em'
+}
+const sectionBoxStyle: React.CSSProperties = {
+  display: 'grid', gap: 8
+}
+const Chip = ({ children, tone }: { children: React.ReactNode; tone?: 'primary' | 'default' }) => (
+  <span style={{
+    padding: '4px 10px', borderRadius: 999,
+    background: tone === 'primary' ? 'rgba(109,94,252,.12)' : 'var(--surface2)',
+    border: `1px solid ${tone === 'primary' ? 'rgba(109,94,252,.35)' : 'var(--line)'}`,
+    color: tone === 'primary' ? 'var(--primary, #6d5efc)' : 'inherit',
+    fontSize: 11, fontWeight: 800, direction: tone === 'primary' ? 'ltr' : 'rtl'
+  }}>{children}</span>
+)
+const MarginBadge = ({ value }: { value: number }) => {
+  const v = Number(value) || 0
+  const color = v <= 5 ? '#22c55e' : v <= 12 ? '#f59e0b' : '#ef4444'
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 900, padding: '4px 10px', borderRadius: 999,
+      background: `${color}22`, border: `1px solid ${color}66`, color
+    }}>
+      سود خانه {v.toFixed(2).replace(/\.00$/, '')}%
+    </span>
+  )
+}
+
+/* ---------- JalaliPicker ---------- */
 function JalaliPicker({value, onChange}:{value:string; onChange:(iso:string)=>void}){
   const init=(()=>{
     const d=value?new Date(value):new Date()
@@ -71,27 +99,53 @@ function JalaliPicker({value, onChange}:{value:string; onChange:(iso:string)=>vo
     const d=new Date(gy,gm-1,gd,hh,mi,0,0)
     onChange(d.toISOString())
   },[jy,jm,jd,hh,mi])
-  // jalali display for selected
   const jLabel=`${jd.toLocaleString('fa-IR')} ${J_MONTHS[jm-1]} ${jy.toLocaleString('fa-IR')} — ${String(hh).padStart(2,'0')}:${String(mi).padStart(2,'0')}`
+  const isPast = new Date(toGregorian(jy,jm,jd).join('/')).getTime() < Date.now() - 86400000
   return (
-    <div style={{background:'#0d1730',border:'1px solid rgba(255,255,255,.08)',borderRadius:12,padding:12}}>
-      <div style={{fontSize:12,fontWeight:800,color:'#cbd5e1',marginBottom:8}}>تاریخ شروع — شمسی</div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-        <select className="input" value={jd} onChange={e=>setJd(Number(e.target.value))}>{Array.from({length:maxD},(_,i)=>i+1).map(d=><option key={d} value={d}>{d.toLocaleString('fa-IR')}</option>)}</select>
-        <select className="input" value={jm} onChange={e=>setJm(Number(e.target.value))}>{J_MONTHS.map((m,i)=><option key={i+1} value={i+1}>{m}</option>)}</select>
-        <select className="input" value={jy} onChange={e=>setJy(Number(e.target.value))}>{[1403,1404,1405,1406,1407].map(y=><option key={y} value={y}>{y.toLocaleString('fa-IR')}</option>)}</select>
+    <div style={{
+      padding:14, borderRadius:16,
+      background:'linear-gradient(180deg, var(--surface2), transparent)',
+      border:'1px solid var(--line)', display:'grid', gap:10
+    }}>
+      <div style={{display:'flex', alignItems:'center', gap:8}}>
+        <span style={{
+          width:26, height:26, borderRadius:9, display:'grid', placeItems:'center',
+          background:'var(--surface)', border:'1px solid var(--line)', fontSize:12
+        }}>📅</span>
+        <span style={labelStyle}>زمان شروع — شمسی</span>
+        {isPast && <span style={{fontSize:10, color:'#f59e0b', fontWeight:800, marginInlineStart:'auto'}}>گذشته</span>}
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:8}}>
-        <select className="input" value={mi} onChange={e=>setMi(Number(e.target.value))}>{Array.from({length:60},(_,i)=>i).map(m=><option key={m} value={m}>{String(m).padStart(2,'0')}</option>)}</select>
-        <select className="input" value={hh} onChange={e=>setHh(Number(e.target.value))}>{Array.from({length:24},(_,i)=>i).map(h=><option key={h} value={h}>{String(h).padStart(2,'0')} ساعت</option>)}</select>
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1.4fr 1fr', gap:8}}>
+        <select className="input" value={jd} onChange={e=>setJd(Number(e.target.value))}>
+          {Array.from({length:maxD},(_,i)=>i+1).map(d=><option key={d} value={d}>{d.toLocaleString('fa-IR')}</option>)}
+        </select>
+        <select className="input" value={jm} onChange={e=>setJm(Number(e.target.value))}>
+          {J_MONTHS.map((m,i)=><option key={i+1} value={i+1}>{m}</option>)}
+        </select>
+        <select className="input" value={jy} onChange={e=>setJy(Number(e.target.value))}>
+          {[1403,1404,1405,1406,1407].map(y=><option key={y} value={y}>{y.toLocaleString('fa-IR')}</option>)}
+        </select>
       </div>
-      <div style={{fontSize:11,color:'#94a3b8',marginTop:8,textAlign:'center'}}>{jLabel}</div>
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
+        <select className="input" value={hh} onChange={e=>setHh(Number(e.target.value))}>
+          {Array.from({length:24},(_,i)=>i).map(h=><option key={h} value={h}>{String(h).padStart(2,'0')} ساعت</option>)}
+        </select>
+        <select className="input" value={mi} onChange={e=>setMi(Number(e.target.value))}>
+          {Array.from({length:60},(_,i)=>i).map(m=><option key={m} value={m}>{String(m).padStart(2,'0')} دقیقه</option>)}
+        </select>
+      </div>
+      <div style={{
+        fontSize:11, color:'var(--muted)', textAlign:'center',
+        padding:'6px 8px', borderRadius:10, background:'var(--surface)', border:'1px solid var(--line)'
+      }}>{jLabel}</div>
     </div>
   )
 }
 
+/* ---------- Admin ---------- */
 export default function Admin(){
   const [users,setUsers]=useState<Profile[]>([])
+  const [userQuery,setUserQuery]=useState('')
   const [matches,setMatches]=useState<Match[]>([])
   const [exposure,setExposure]=useState<Exposure>({})
   const [house,setHouse]=useState<{byMatch:Record<string,{total:number,paid:number,profit:number,count:number}>, totalProfit:number, totalStakes:number, totalPaid:number}>({byMatch:{},totalProfit:0,totalStakes:0,totalPaid:0})
@@ -101,10 +155,19 @@ export default function Admin(){
   const [msg,setMsg]=useState<string|null>(null)
   const [chargeUser,setChargeUser]=useState('')
   const [chargeAmount,setChargeAmount]=useState('100000')
-  const [form,setForm]=useState({ title:'', game:'FC 25', team_a:'', team_b:'', odds_a:'1.90', odds_b:'1.90', odds_draw:'', starts_at:new Date().toISOString(), odds_mode:'auto' as 'manual'|'auto', margin:'5' })
+  const [resetId,setResetId]=useState<string|null>(null)
+  const [resetPw,setResetPw]=useState('')
+  const [form,setForm]=useState({
+    title:'', game:'FC 25', team_a:'', team_b:'',
+    odds_a:'1.90', odds_b:'1.90', odds_draw:'',
+    starts_at:new Date().toISOString(),
+    odds_mode:'auto' as 'manual'|'auto', margin:'5',
+    min_bet:'', max_bet:'', description:''
+  })
   const [matchTab,setMatchTab]=useState<'upcoming'|'history'>('upcoming')
   const [tab,setTab]=useState<'dash'|'matches'|'users'|'charge'>('dash')
-  // two-way odds ↔ margin (auto mode, no dep)
+  const [showAdvanced,setShowAdvanced]=useState(false)
+
   const calcMarginPct = (aStr:string,bStr:string,dStr:string)=>{
     const a=parseFloat(aStr), b=parseFloat(bStr), d=dStr?parseFloat(dStr):NaN
     let s=0; if(a>1) s+=1/a; if(b>1) s+=1/b; if(!isNaN(d) && d>1) s+=1/d
@@ -114,7 +177,6 @@ export default function Admin(){
     const next:any={...form, [field]:val}
     if(form.odds_mode==='auto'){
       const m=calcMarginPct(field==='odds_a'?val:next.odds_a, field==='odds_b'?val:next.odds_b, field==='odds_draw'?val:next.odds_draw)
-      // only overwrite margin when odds are parseable
       const hasA=parseFloat(field==='odds_a'?val:next.odds_a)>1, hasB=parseFloat(field==='odds_b'?val:next.odds_b)>1
       if(hasA && hasB) next.margin = m.toFixed(2).replace(/\.00$/,'')
     }
@@ -160,7 +222,7 @@ export default function Admin(){
     setExposure(exp)
     const { data: settled } = await supabase.from('bets').select('match_id,amount,potential_payout,status').in('status',['won','lost'])
     const by: Record<string,{total:number,paid:number,profit:number,count:number}> = {}
-    let tp=0, ts=0, td=0
+    let ts=0, td=0
     for(const b of (settled as any[]||[])){
       const mid=b.match_id as string
       if(!by[mid]) by[mid]={total:0,paid:0,profit:0,count:0}
@@ -170,10 +232,8 @@ export default function Admin(){
       ts += Number(b.amount)
       if(b.status==='won') td += Number(b.potential_payout)
     }
-    for(const k of Object.keys(by)){ by[k].profit = by[k].total - by[k].paid; tp += by[k].profit }
-    tp = ts - td
-    setHouse({byMatch:by,totalProfit:tp,totalStakes:ts,totalPaid:td})
-    // userStats aggregated
+    for(const k of Object.keys(by)) by[k].profit = by[k].total - by[k].paid
+    setHouse({byMatch:by,totalProfit:ts-td,totalStakes:ts,totalPaid:td})
     const { data: allBets } = await supabase.from('bets').select('user_id,amount')
     const stats: Record<string,{count:number,total:number}>={}
     for(const b of (allBets as any[]||[])){
@@ -182,7 +242,6 @@ export default function Admin(){
       stats[b.user_id].total+=Number(b.amount)
     }
     setUserStats(stats)
-    // games from site_settings
     try{
       const { data: st } = await supabase.from('site_settings').select('games').eq('id',1).single() as any
       if(st?.games && Array.isArray(st.games)) setGames(st.games)
@@ -192,6 +251,13 @@ export default function Admin(){
   }
   useEffect(()=>{ load() },[])
 
+  const doReset = async(u:Profile)=>{
+    const pw = resetPw.trim()
+    if(pw.length<6){ setMsg('رمز باید حداقل ۶ کاراکتر باشد'); return }
+    setMsg(null)
+    const { error } = await supabase.rpc('admin_reset_password',{ p_user_id: u.id, p_new_password: pw } as any)
+    if(error) setMsg('خطا: '+error.message); else { setMsg('✅ رمز '+u.username+' بازنشانی شد'); setResetId(null); setResetPw('') }
+  }
   const doCharge = async()=>{
     setMsg(null)
     const amt = Number(chargeAmount.replace(/[^0-9]/g,''))
@@ -214,16 +280,39 @@ export default function Admin(){
 
   const createMatch = async(e:React.FormEvent)=>{
     e.preventDefault(); setMsg(null)
+
+    // اعتبارسنجی
+    const a = parseFloat(form.odds_a), b = parseFloat(form.odds_b)
+    const d = form.odds_draw ? parseFloat(form.odds_draw) : NaN
+    if(!(a >= 1.01) || !(b >= 1.01)){ setMsg('ضریب‌ها باید ≥ 1.01 باشند'); return }
+    if(form.odds_draw && !(d >= 1.01)){ setMsg('ضریب مساوی نامعتبر'); return }
+    const mb = form.min_bet ? Number(form.min_bet.replace(/[^0-9]/g,'')) : 0
+    const xb = form.max_bet ? Number(form.max_bet.replace(/[^0-9]/g,'')) : 0
+    if(mb && xb && mb > xb){ setMsg('حداقل شرط بزرگ‌تر از حداکثر است'); return }
+
     const mgn = Math.max(0, Math.min(30, Number(form.margin)||5))/100
     const payload:any = {
       title: form.title, game: form.game, team_a: form.team_a, team_b: form.team_b,
-      odds_a: Number(form.odds_a), odds_b: Number(form.odds_b),
-      odds_draw: form.odds_draw ? Number(form.odds_draw) : null,
+      odds_a: a, odds_b: b,
+      odds_draw: form.odds_draw ? d : null,
       odds_mode: form.odds_mode, margin: mgn,
-      status: 'upcoming', starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : new Date().toISOString()
+      status: 'upcoming',
+      starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : new Date().toISOString(),
+      // ⚠️ فقط اگر در دیتابیس داری — وگرنه حذف کن
+
     }
     const { error } = await supabase.from('matches').insert(payload)
-    if(error) setMsg(error.message); else { setMsg('✅ مسابقه ساخته شد ('+(form.odds_mode==='auto'?'سیستمی':'دستی')+')'); setForm({ title:'', game:'FC 25', team_a:'', team_b:'', odds_a:'1.90', odds_b:'1.90', odds_draw:'', starts_at:new Date().toISOString(), odds_mode:'auto', margin:'5' }); load() }
+    if(error) setMsg(error.message)
+    else {
+      setMsg('✅ مسابقه ساخته شد ('+(form.odds_mode==='auto'?'سیستمی':'دستی')+')')
+      setForm({
+        title:'', game:'FC 25', team_a:'', team_b:'',
+        odds_a:'1.90', odds_b:'1.90', odds_draw:'',
+        starts_at:new Date().toISOString(), odds_mode:'auto', margin:'5',
+        min_bet:'', max_bet:'', description:''
+      })
+      load()
+    }
   }
 
   const settle = async(id:string, winner:'team_a'|'team_b'|'draw')=>{
@@ -267,26 +356,65 @@ export default function Admin(){
     setMsg('✅ فونت به '+e.target.value+' تغییر کرد')
   }
 
-  const filteredMatches = matches.filter(m=> matchTab==='upcoming' ? m.status==='upcoming' : m.status!=='upcoming')
+  const FALLBACK_ICONS: Record<string,string> = {'FC 25':'⚽','Valorant':'🎯','CS2':'🔫','DOTA 2':'🐉','LoL':'🏆','CoD':'🔫','FIFA':'⚽', default:'🎮'}
+  const gameIconOf = (g:string)=> games.find(x=> x.name===g)?.icon || (FALLBACK_ICONS as any)[g] || FALLBACK_ICONS.default
+  const filteredMatches = matches.filter(m=> matchTab==='upcoming' ? (m.status==='upcoming' || m.status==='live') : (m.status==='finished' && !!m.winner))
+  const upUpcoming = matches.filter(m=> m.status==='upcoming' || m.status==='live').length
+  const upFinished = matches.filter(m=> m.status==='finished' && !!m.winner).length
+
+  const previewMargin = calcMarginPct(form.odds_a, form.odds_b, form.odds_draw)
+  const aValid = parseFloat(form.odds_a) >= 1.01
+  const bValid = parseFloat(form.odds_b) >= 1.01
+  const dValid = !form.odds_draw || parseFloat(form.odds_draw) >= 1.01
 
   return (
-    <div className="container" style={{padding:'20px 14px 28px'}}>
-      <h2 style={{fontWeight:900,fontSize:22}}>پنل ادمین</h2>
-      <div style={{display:'flex',gap:8,marginTop:10,flexWrap:'wrap',alignItems:'center'}}>
-        <Link to="/admin/withdrawals" className="btn btn-primary btn-sm">💸 مدیریت برداشت‌ها</Link>
-        <Link to="/admin/house" className="btn btn-ghost btn-sm">🏦 سود خانه</Link>
-        <Link to="/admin/settings" className="btn btn-ghost btn-sm">⚙️ تنظیمات سایت</Link>
-        <Link to="/admin/design" className="btn btn-ghost btn-sm" style={{borderColor:"#8b5cf6", color:"#a78bfa"}}>🎨 طراحی سایت</Link>
-        <select value={siteFont} onChange={handleFontChange} className="input" style={{width:'auto',padding:'6px 10px',fontSize:12}}>
-          {FONT_OPTS.map(o=> <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+    <div style={{padding:'18px 14px 28px', maxWidth:1100, margin:'0 auto'}}>
+      {/* header */}
+      <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
+        <div style={{minWidth:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+            <span style={{
+              width:38,height:38,borderRadius:12,display:'grid',placeItems:'center',
+              background:'linear-gradient(135deg, rgba(109,94,252,.18), rgba(176,107,255,.10))',
+              border:'1px solid var(--line)',fontSize:16
+            }}>◆</span>
+            <h2 style={{fontWeight:900,fontSize:18,letterSpacing:'-.02em'}}>داشبورد</h2>
+            <span style={{fontSize:11,padding:'4px 10px',borderRadius:999,background:'var(--surface)',border:'1px solid var(--line)',color:'var(--muted)',fontWeight:700}}>
+              {matches.length.toLocaleString('fa-IR')} مسابقه · {users.length.toLocaleString('fa-IR')} کاربر
+            </span>
+          </div>
+          <p style={{color:'var(--muted)',fontSize:12,marginTop:6, lineHeight:1.7}}>مدیریت مسابقات، موجودی و تسویه — همه چیز از اینجا.</p>
+        </div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+          <Link to="/admin/withdrawals" className="btn btn-ghost btn-sm" style={{borderRadius:999}}>💸 برداشت‌ها</Link>
+          <Link to="/admin/house" className="btn btn-ghost btn-sm" style={{borderRadius:999}}>🏦 سود خانه</Link>
+          <Link to="/admin/settings" className="btn btn-ghost btn-sm" style={{borderRadius:999}}>⚙️ تنظیمات</Link>
+          <Link to="/admin/design" className="btn btn-ghost btn-sm" style={{borderRadius:999, borderColor:'rgba(139,92,246,.25)', color:'#a78bfa'}}>🎨 طراحی</Link>
+          <select value={siteFont} onChange={handleFontChange} className="input" style={{width:'auto',padding:'6px 10px',fontSize:12, borderRadius:999}}>
+            {FONT_OPTS.map(o=> <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
       </div>
-      {msg && <div style={{marginTop:10,background:'rgba(0,229,160,.12)',border:'1px solid rgba(0,229,160,.3)',padding:'10px 12px',borderRadius:12,fontSize:13,wordBreak:'break-word'}}>{msg}</div>}
 
-      {/* tabs */}
-      <div style={{display:'flex',gap:6,marginTop:14,borderBottom:'1px solid var(--line)',paddingBottom:8}}>
+      {msg && (
+        <div style={{
+          marginTop:12,
+          background: /^(✅|⚙️|✋)/.test(msg) ? 'rgba(34,197,94,.08)' : 'rgba(255,60,90,.10)',
+          border: `1px solid ${/^(✅|⚙️|✋)/.test(msg) ? 'rgba(34,197,94,.22)' : 'rgba(255,60,90,.2)'}`,
+          padding:'10px 12px', borderRadius:12, fontSize:13, wordBreak:'break-word',
+          color: /^(✅|⚙️|✋)/.test(msg) ? 'var(--text)' : '#fecdd3'
+        }}>{msg}</div>
+      )}
+
+      {/* pill tabs */}
+      <div style={{display:'inline-flex',gap:4,marginTop:14,padding:4,borderRadius:999,background:'var(--surface)',border:'1px solid var(--line)', maxWidth:'100%',overflow:'auto'}}>
         {(['dash','matches','users','charge'] as const).map(t=>(
-          <button key={t} onClick={()=>setTab(t)} className={tab===t ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm'}>
+          <button key={t} onClick={()=>setTab(t)} style={{
+            padding:'7px 14px', borderRadius:999, fontSize:12, fontWeight:800, border:'1px solid transparent', cursor:'pointer', whiteSpace:'nowrap',
+            background: tab===t ? 'var(--text)' : 'transparent',
+            color: tab===t ? 'var(--bg)' : 'var(--muted)',
+            transition:'all .15s'
+          }}>
             {t==='dash' ? '📊 داشبورد' : t==='matches' ? '🎮 مسابقات' : t==='users' ? '👥 کاربران' : '💳 شارژ'}
           </button>
         ))}
@@ -294,40 +422,79 @@ export default function Admin(){
 
       {tab==='dash' && (
         <>
-          <div className="card" style={{marginTop:14,padding:14,background: house.totalProfit>=0 ? 'linear-gradient(135deg,#0f2a22,#162040)' : 'linear-gradient(135deg,#2a0f1a,#1e1430)',borderColor: house.totalProfit>=0?'rgba(0,229,160,.25)':'rgba(255,60,90,.25)'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,flexWrap:'wrap'}}>
+          <div className="card" style={{
+            marginTop:14, padding:16, position:'relative', overflow:'hidden',
+            background: house.totalProfit>=0
+              ? 'linear-gradient(180deg, rgba(34,197,94,.10), rgba(34,197,94,.03))'
+              : 'linear-gradient(180deg, rgba(244,63,94,.10), rgba(244,63,94,.03))',
+            borderColor: house.totalProfit>=0?'rgba(34,197,94,.20)':'rgba(244,63,94,.22)'
+          }}>
+            <div style={{position:'absolute', inset:0, background:'radial-gradient(600px 300px at 85% 0%, rgba(255,255,255,.06), transparent 60%)', pointerEvents:'none'}}/>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:12,flexWrap:'wrap', position:'relative'}}>
               <div>
-                <div style={{fontWeight:900,fontSize:15}}>💰 سود خانه — مسابقات تمام‌شده</div>
-                <div style={{fontSize:11,color:'var(--muted)',marginTop:4}}>فقط مسابقاتی که تسویه شدند حساب می‌شوند (در انتظار/لغوشده حساب نیست).</div>
+                <div style={{fontSize:11, letterSpacing:'.08em', color:'var(--muted)', fontWeight:800}}>سود خانه — تسویه‌شده</div>
+                <div style={{display:'flex',gap:8,alignItems:'baseline',marginTop:6,flexWrap:'wrap'}}>
+                  <span style={{fontWeight:900,fontSize:22, color: house.totalProfit>=0?'#22c55e':'#f43f5e', letterSpacing:'-.03em'}}>
+                    {house.totalProfit>=0?'+':''}{house.totalProfit.toLocaleString('fa-IR')} <span style={{fontSize:12, color:'var(--muted)', fontWeight:700}}>تومان</span>
+                  </span>
+                  <span style={{
+                    fontSize:11, padding:'3px 8px', borderRadius:999,
+                    background: house.totalProfit>=0?'rgba(34,197,94,.12)':'rgba(244,63,94,.12)',
+                    color:house.totalProfit>=0?'#22c55e':'#f43f5e',
+                    border:`1px solid ${house.totalProfit>=0?'rgba(34,197,94,.25)':'rgba(244,63,94,.25)'}`,
+                    fontWeight:800
+                  }}>{house.totalProfit>=0?'سود':'ضرر'}</span>
+                  <span style={{fontSize:11, color:'var(--muted)'}}>· {Object.values(house.byMatch).reduce((s,v)=>s+v.count,0).toLocaleString('fa-IR')} شرط تسویه‌شده</span>
+                </div>
+                <div style={{fontSize:11,color:'var(--muted)',marginTop:4, lineHeight:1.7}}>فقط مسابقاتی که تسویه شدند حساب می‌شوند.</div>
               </div>
-              <span className="badge" style={{fontSize:11,background: house.totalProfit>=0?'rgba(0,229,160,.15)':'rgba(255,60,90,.15)',color: house.totalProfit>=0?'var(--accent)':'#ff6b7a',borderColor: house.totalProfit>=0?'rgba(0,229,160,.3)':'rgba(255,60,90,.3)'}}>{house.totalProfit>=0?'سود':'ضرر'}</span>
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginTop:12}}>
-              <div style={{background:'rgba(255,255,255,.06)',border:'1px solid var(--line)',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
-                <div style={{fontSize:10,color:'var(--muted)'}}>کل شرط‌ها (تسویه‌شده)</div><div style={{fontWeight:900,fontSize:13,marginTop:4}}>{house.totalStakes.toLocaleString('fa-IR')} <span style={{fontSize:10,color:'var(--muted)'}}>ت</span></div><div style={{fontSize:10,color:'var(--muted)',marginTop:2}}>{Object.values(house.byMatch).reduce((s,v)=>s+v.count,0).toLocaleString('fa-IR')} شرط</div>
-              </div>
-              <div style={{background:'rgba(255,255,255,.06)',border:'1px solid var(--line)',borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
-                <div style={{fontSize:10,color:'var(--muted)'}}>پرداختی به برندگان</div><div style={{fontWeight:900,fontSize:13,marginTop:4}}>{house.totalPaid.toLocaleString('fa-IR')} <span style={{fontSize:10,color:'var(--muted)'}}>ت</span></div>
-              </div>
-              <div style={{background: house.totalProfit>=0?'rgba(0,229,160,.10)':'rgba(255,60,90,.10)',border:`1px solid ${house.totalProfit>=0?'rgba(0,229,160,.3)':'rgba(255,60,90,.3)'}`,borderRadius:12,padding:'12px 10px',textAlign:'center'}}>
-                <div style={{fontSize:10,color: house.totalProfit>=0?'var(--accent)':'#ff6b7a',fontWeight:700}}>سود خالص</div><div style={{fontWeight:900,fontSize:16,marginTop:4,color: house.totalProfit>=0?'var(--accent)':'#ff6b7a'}}>{house.totalProfit>=0?'+':''}{house.totalProfit.toLocaleString('fa-IR')} <span style={{fontSize:11}}>ت</span></div>
+              <div style={{display:'flex',gap:8, flexWrap:'wrap'}}>
+                <div style={{minWidth:110, padding:'10px 12px', borderRadius:12, background:'var(--surface)', border:'1px solid var(--line)', textAlign:'center'}}>
+                  <div style={{fontSize:10,color:'var(--muted)'}}>کل دریافتی</div>
+                  <div style={{fontWeight:900,fontSize:13,marginTop:2}}>{house.totalStakes.toLocaleString('fa-IR')} <span style={{fontSize:10,color:'var(--muted)'}}>ت</span></div>
+                </div>
+                <div style={{minWidth:110, padding:'10px 12px', borderRadius:12, background:'var(--surface)', border:'1px solid var(--line)', textAlign:'center'}}>
+                  <div style={{fontSize:10,color:'var(--muted)'}}>پرداختی</div>
+                  <div style={{fontWeight:900,fontSize:13,marginTop:2}}>{house.totalPaid.toLocaleString('fa-IR')} <span style={{fontSize:10,color:'var(--muted)'}}>ت</span></div>
+                </div>
               </div>
             </div>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,marginTop:12}}>
-            <div className="card" style={{padding:14,textAlign:'center'}}><div style={{fontSize:12,color:'var(--muted)'}}>کاربران</div><div style={{fontWeight:900,fontSize:20}}>{users.length}</div></div>
-            <div className="card" style={{padding:14,textAlign:'center'}}><div style={{fontSize:12,color:'var(--muted)'}}>مسابقات</div><div style={{fontWeight:900,fontSize:20}}>{matches.length}</div></div>
-            <div className="card" style={{padding:14,textAlign:'center'}}><div style={{fontSize:12,color:'var(--muted)'}}>در انتظار تسویه</div><div style={{fontWeight:900,fontSize:20}}>{matches.filter(m=>m.status==='upcoming').length}</div></div>
+
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginTop:12}}>
+            {[
+              {k:'کاربران', v:users.length.toLocaleString('fa-IR'), sub:'ثبت‌نام‌کرده', icon:'👥'},
+              {k:'مسابقات', v:matches.length.toLocaleString('fa-IR'), sub:`${matches.filter(m=>m.status==='upcoming').length.toLocaleString('fa-IR')} پیش‌رو`, icon:'🎮'},
+              {k:'در انتظار تسویه', v:matches.filter(m=>m.status==='upcoming').length.toLocaleString('fa-IR'), sub:'نیاز به اقدام', icon:'⏳'},
+            ].map(s=>(
+              <div key={s.k} className="card" style={{padding:12, display:'flex',alignItems:'center',gap:10, minHeight:72}}>
+                <span style={{width:36,height:36,borderRadius:10,display:'grid',placeItems:'center',background:'var(--surface2)',border:'1px solid var(--line)',fontSize:14, flexShrink:0}}>{s.icon}</span>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:11,color:'var(--muted)',fontWeight:700}}>{s.k}</div>
+                  <div style={{fontWeight:900,fontSize:16, lineHeight:1.1, marginTop:2}}>{s.v}</div>
+                  <div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>{s.sub}</div>
+                </div>
+              </div>
+            ))}
           </div>
+
           <div className="card" style={{marginTop:12,padding:14}}>
-            <h3 style={{fontWeight:800,marginBottom:8}}>آخرین مسابقات</h3>
-            <div style={{display:'grid',gap:8}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+              <h3 style={{fontWeight:800,fontSize:13}}>آخرین مسابقات</h3>
+              <button className="btn btn-ghost btn-sm" style={{borderRadius:999}} onClick={()=> setTab('matches')}>مدیریت →</button>
+            </div>
+            <div style={{display:'grid',gap:8,marginTop:10}}>
               {matches.slice(0,5).map(m=>(
-                <div key={m.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:'rgba(255,255,255,.04)',padding:'8px 10px',borderRadius:10,fontSize:13}}>
-                  <span>{m.title} — {m.team_a} vs {m.team_b}</span><span className={'status status-'+m.status}>{m.status}</span>
+                <div key={m.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10, padding:'10px 12px',borderRadius:10, background:'var(--surface2)', border:'1px solid var(--line)', fontSize:13}}>
+                  <span style={{minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                    {m.title} — {m.team_a} vs {m.team_b} <span style={{color:'var(--muted)', fontSize:11}}>· {m.game}</span>
+                  </span>
+                  <span className={'status status-'+m.status} style={{flexShrink:0, padding:'3px 8px', fontSize:11}}>
+                    {m.status==='upcoming'?'پیش‌رو':m.status==='live'?'زنده':'پایان‌یافته'}
+                  </span>
                 </div>
               ))}
-              {matches.length===0 && <div style={{color:'var(--muted)',fontSize:12}}>مسابقه‌ای نیست</div>}
+              {matches.length===0 && <div style={{color:'var(--muted)',fontSize:12, textAlign:'center', padding:10}}>مسابقه‌ای نیست</div>}
             </div>
           </div>
         </>
@@ -335,47 +502,217 @@ export default function Admin(){
 
       {tab==='matches' && (
         <>
-          <div style={{display:'flex',gap:8,marginTop:14}}>
-            <button onClick={()=>setMatchTab('upcoming')} className={matchTab==='upcoming'?'btn btn-primary btn-sm':'btn btn-ghost btn-sm'}>پیش‌رو</button>
-            <button onClick={()=>setMatchTab('history')} className={matchTab==='history'?'btn btn-primary btn-sm':'btn btn-ghost btn-sm'}>تاریخچه</button>
+          <div style={{display:'inline-flex',gap:4,marginTop:14,padding:4,borderRadius:999,background:'var(--surface)',border:'1px solid var(--line)'}}>
+            <button onClick={()=>setMatchTab('upcoming')} style={{padding:'6px 12px',borderRadius:999,fontSize:12,fontWeight:800,border:'1px solid transparent',cursor:'pointer', background: matchTab==='upcoming' ? 'var(--text)' : 'transparent', color: matchTab==='upcoming' ? 'var(--bg)' : 'var(--muted)'}}>پیش‌رو · {upUpcoming.toLocaleString('fa-IR')}</button>
+            <button onClick={()=>setMatchTab('history')} style={{padding:'6px 12px',borderRadius:999,fontSize:12,fontWeight:800,border:'1px solid transparent',cursor:'pointer', background: matchTab==='history' ? 'var(--text)' : 'transparent', color: matchTab==='history' ? 'var(--bg)' : 'var(--muted)'}}>تاریخچه · {upFinished.toLocaleString('fa-IR')}</button>
           </div>
+
           <datalist id="admin-games">
             {games.map((g,i)=> <option key={i} value={g.name} />)}
             <option value="FC 25" /><option value="Valorant" /><option value="CS2" />
           </datalist>
-          <div className="card" style={{marginTop:12,padding:14}}>
-            <h3 style={{fontWeight:800,marginBottom:10,fontSize:15}}>ساخت مسابقه جدید</h3>
-            <form onSubmit={createMatch} style={{display:'grid',gap:10}}>
-              <input className="input" placeholder="عنوان — مثلا فینال جمعه" value={form.title} onChange={e=>setForm({...form,title:e.target.value})} required/>
-              <input className="input" list="admin-games" placeholder="بازی" value={form.game} onChange={e=>setForm({...form,game:e.target.value})} required/>
-              <JalaliPicker value={form.starts_at} onChange={v=>setForm({...form,starts_at:v})} />
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                <input className="input" placeholder="تیم A" value={form.team_a} onChange={e=>setForm({...form,team_a:e.target.value})} required/>
-                <input className="input" placeholder="تیم B" value={form.team_b} onChange={e=>setForm({...form,team_b:e.target.value})} required/>
+
+          {/* ---------- CREATE MATCH ---------- */}
+          <div className="card" style={{
+            marginTop:12, padding:20, borderRadius:20,
+            background:'linear-gradient(180deg, var(--surface) 0%, var(--surface2) 100%)',
+            border:'1px solid var(--line)',
+            boxShadow:'0 10px 30px -18px rgba(0,0,0,.35)',
+            display:'grid', gap:16
+          }}>
+            {/* header */}
+            <div style={{display:'flex', alignItems:'center', gap:10}}>
+              <div style={{
+                width:34, height:34, borderRadius:12, display:'grid', placeItems:'center',
+                background:'linear-gradient(135deg, var(--primary, #6d5efc), #b06bff)',
+                color:'#fff', fontSize:16,
+                boxShadow:'0 6px 16px -8px rgba(109,94,252,.8)'
+              }}>🎯</div>
+              <div style={{display:'grid'}}>
+                <h3 style={{fontWeight:900, margin:0, fontSize:15}}>ساخت مسابقهٔ جدید</h3>
+                <p style={{color:'var(--muted)', fontSize:11, margin:0}}>ضرایب و مارجین دوطرفه همگام می‌شوند.</p>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-                <input className="input" placeholder="ضریب A" value={form.odds_a} onChange={e=>handleOddsChange('odds_a',e.target.value)} dir="ltr"/>
-                <input className="input" placeholder="ضریب B" value={form.odds_b} onChange={e=>handleOddsChange('odds_b',e.target.value)} dir="ltr"/>
-                <input className="input" placeholder="مساوی (اختیاری)" value={form.odds_draw} onChange={e=>handleOddsChange('odds_draw',e.target.value)} dir="ltr"/>
+              <span style={{
+                marginInlineStart:'auto', fontSize:10, fontWeight:800,
+                padding:'4px 10px', borderRadius:999,
+                background:'var(--surface2)', border:'1px solid var(--line)',
+                color:'var(--muted)'
+              }}>{form.odds_mode === 'auto' ? '⚙️ سیستمی' : '✋ دستی'}</span>
+            </div>
+
+            <form onSubmit={createMatch} style={{display:'grid', gap:14}}>
+              {/* title + game */}
+              <div style={sectionBoxStyle}>
+                <label style={labelStyle}>عنوان و بازی</label>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}} className="responsive-2col">
+                  <input className="input" placeholder="عنوان — مثلا فینال جمعه" value={form.title} onChange={e=>setForm({...form,title:e.target.value})} required/>
+                  <input className="input" list="admin-games" placeholder="بازی" value={form.game} onChange={e=>setForm({...form,game:e.target.value})} required/>
+                </div>
               </div>
-              <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-                <select value={form.odds_mode} onChange={e=>{
-                  const v=e.target.value as any
-                  if(v==='manual'){ setForm({...form, odds_mode:v}); return }
-                  // switching to auto: recompute margin from current odds
-                  const m=calcMarginPct(form.odds_a, form.odds_b, form.odds_draw)
-                  setForm({...form, odds_mode:v, margin: m ? m.toFixed(2).replace(/\.00$/,'') : form.margin})
-                }} className="input" style={{width:'auto'}}>
-                  <option value="auto">⚙️ سیستمی</option><option value="manual">✋ دستی</option>
+
+              {/* time */}
+              <div style={sectionBoxStyle}>
+                <JalaliPicker value={form.starts_at} onChange={v=>setForm({...form,starts_at:v})} />
+              </div>
+
+              {/* teams */}
+              <div style={sectionBoxStyle}>
+                <label style={labelStyle}>تیم‌ها</label>
+                <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:10, alignItems:'center'}}>
+                  <input className="input" placeholder="تیم A" value={form.team_a} onChange={e=>setForm({...form,team_a:e.target.value})} required/>
+                  <span style={{
+                    fontSize:11, fontWeight:900, color:'var(--muted)',
+                    padding:'4px 8px', borderRadius:999,
+                    background:'var(--surface2)', border:'1px solid var(--line)'
+                  }}>VS</span>
+                  <input className="input" placeholder="تیم B" value={form.team_b} onChange={e=>setForm({...form,team_b:e.target.value})} required/>
+                </div>
+              </div>
+
+              {/* odds */}
+              <div style={sectionBoxStyle}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <label style={labelStyle}>ضرایب</label>
+                  {(!aValid || !bValid || !dValid) && (
+                    <span style={{fontSize:10,color:'#f43f5e',fontWeight:800}}>هر ضریب باید ≥ 1.01 باشد</span>
+                  )}
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}} className="responsive-3col">
+                  <input
+                    className="input"
+                    placeholder="ضریب A"
+                    value={form.odds_a}
+                    onChange={e=>handleOddsChange('odds_a',e.target.value)}
+                    dir="ltr"
+                    style={{textAlign:'center', fontWeight:800, borderColor: aValid ? undefined : '#f43f5e'}}
+                  />
+                  <input
+                    className="input"
+                    placeholder="ضریب B"
+                    value={form.odds_b}
+                    onChange={e=>handleOddsChange('odds_b',e.target.value)}
+                    dir="ltr"
+                    style={{textAlign:'center', fontWeight:800, borderColor: bValid ? undefined : '#f43f5e'}}
+                  />
+                  <input
+                    className="input"
+                    placeholder="مساوی (اختیاری)"
+                    value={form.odds_draw}
+                    onChange={e=>handleOddsChange('odds_draw',e.target.value)}
+                    dir="ltr"
+                    style={{textAlign:'center', fontWeight:800, borderColor: dValid ? undefined : '#f43f5e'}}
+                  />
+                </div>
+              </div>
+
+              {/* mode + margin */}
+              <div style={{
+                display:'flex', gap:10, alignItems:'center', flexWrap:'wrap',
+                padding:'10px 12px', borderRadius:14,
+                background:'var(--surface2)', border:'1px solid var(--line)'
+              }}>
+                <select
+                  value={form.odds_mode}
+                  onChange={e=>{
+                    const v=e.target.value as any
+                    if(v==='manual'){ setForm({...form, odds_mode:v}); return }
+                    const m=calcMarginPct(form.odds_a, form.odds_b, form.odds_draw)
+                    setForm({...form, odds_mode:v, margin: m ? m.toFixed(2).replace(/\.00$/,'') : form.margin})
+                  }}
+                  className="input"
+                  style={{width:'auto', minWidth:120}}
+                >
+                  <option value="auto">⚙️ سیستمی</option>
+                  <option value="manual">✋ دستی</option>
                 </select>
-                <input className="input" style={{width:92}} placeholder="مارجین %" value={form.margin} onChange={e=>handleMarginChange(e.target.value)} dir="ltr"/>
-                {form.odds_mode==='auto' && <span style={{fontSize:11,color:'#94a3b8',fontWeight:600}}>سود خانه {calcMarginPct(form.odds_a,form.odds_b,form.odds_draw).toFixed(2).replace(/\.00$/,'')}%</span>}
-                <button type="submit" className="btn btn-primary btn-sm" style={{marginRight:'auto'}}>ساخت مسابقه</button>
+
+                <input
+                  className="input"
+                  style={{width:110, textAlign:'center'}}
+                  placeholder="مارجین %"
+                  value={form.margin}
+                  onChange={e=>handleMarginChange(e.target.value)}
+                  dir="ltr"
+                />
+
+                {form.odds_mode==='auto' && <MarginBadge value={previewMargin} />}
+
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  style={{
+                    marginInlineStart:'auto', borderRadius:999, padding:'10px 20px',
+                    fontWeight:800,
+                    background:'linear-gradient(135deg, var(--primary, #6d5efc), #b06bff)',
+                    border:'none',
+                    boxShadow:'0 10px 24px -12px rgba(109,94,252,.9)'
+                  }}
+                >＋ ساخت مسابقه</button>
               </div>
+
+              {/* advanced */}
+              <button
+                type="button"
+                onClick={()=>setShowAdvanced(s=>!s)}
+                className="btn btn-ghost btn-sm"
+                style={{borderRadius:999, justifySelf:'start', fontSize:11}}
+              >{showAdvanced ? '▲ بستن تنظیمات پیشرفته' : '▼ تنظیمات پیشرفته (اختیاری)'}</button>
+
+              {showAdvanced && (
+                <div style={{
+                  display:'grid', gap:12, padding:'12px 14px',
+                  borderRadius:14, background:'var(--surface2)',
+                  border:'1px dashed var(--line)'
+                }}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}} className="responsive-2col">
+                    <div style={sectionBoxStyle}>
+                      <label style={labelStyle}>حداقل شرط (تومان)</label>
+                      <input className="input" placeholder="مثلا 10000" value={form.min_bet} onChange={e=>setForm({...form,min_bet:e.target.value})} dir="ltr" inputMode="numeric"/>
+                    </div>
+                    <div style={sectionBoxStyle}>
+                      <label style={labelStyle}>حداکثر شرط (تومان)</label>
+                      <input className="input" placeholder="مثلا 500000" value={form.max_bet} onChange={e=>setForm({...form,max_bet:e.target.value})} dir="ltr" inputMode="numeric"/>
+                    </div>
+                  </div>
+                  <div style={sectionBoxStyle}>
+                    <label style={labelStyle}>توضیحات کوتاه</label>
+                    <textarea
+                      className="input"
+                      placeholder="مثلا: نیمه‌نهایی — برنده به فینال می‌رود"
+                      value={form.description}
+                      onChange={e=>setForm({...form,description:e.target.value})}
+                      rows={2}
+                      style={{resize:'vertical', fontFamily:'inherit'}}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* live preview */}
+              {(form.team_a || form.team_b) && (
+                <div style={{
+                  display:'flex', alignItems:'center', gap:10, flexWrap:'wrap',
+                  padding:'10px 12px', borderRadius:14,
+                  border:'1px dashed var(--line)',
+                  fontSize:12
+                }}>
+                  <span style={{color:'var(--muted)', fontWeight:700}}>پیش‌نمایش:</span>
+                  <Chip>{form.team_a || 'تیم A'}</Chip>
+                  <span style={{color:'var(--muted)'}}>vs</span>
+                  <Chip>{form.team_b || 'تیم B'}</Chip>
+                  <div style={{marginInlineStart:'auto', display:'flex', gap:6, flexWrap:'wrap'}}>
+                    {aValid && <Chip tone="primary">A {form.odds_a}</Chip>}
+                    {bValid && <Chip tone="primary">B {form.odds_b}</Chip>}
+                    {form.odds_draw && dValid && <Chip tone="primary">= {form.odds_draw}</Chip>}
+                  </div>
+                </div>
+              )}
             </form>
           </div>
-          <div style={{display:'grid',gap:12,marginTop:12}}>
-            {filteredMatches.length===0 ? <div style={{color:'var(--muted)',fontSize:13}}>مسابقه‌ای نیست</div> : filteredMatches.map(m=>{
+          {/* ---------- /CREATE MATCH ---------- */}
+
+          <div className="bet-grid" style={{marginTop:12}}>
+            {filteredMatches.length===0 ? <div className="card" style={{padding:16,textAlign:'center', color:'var(--muted)',fontSize:13}}>مسابقه‌ای نیست</div> : filteredMatches.map(m=>{
               const exp = exposure[m.id]
               const hasBets = !!(exp && exp.total>0)
               const pA = hasBets ? exp.total - exp.a.pay : 0
@@ -383,67 +720,76 @@ export default function Admin(){
               const pD = hasBets ? exp.total - exp.d.pay : 0
               const worst = hasBets ? Math.min(pA, pB, m.odds_draw!=null ? pD : Infinity) : 0
               const fmt = (n:number)=> (n>=0?'+':'')+n.toLocaleString('fa-IR')+' ت'
-              const pnlColor = (n:number)=> n>=0 ? '#22c55e' : '#ff6b7a'
-              const pnlBg = (n:number)=> n>=0 ? 'rgba(34,197,94,.10)' : 'rgba(255,60,90,.10)'
-              const pnlBd = (n:number)=> n>=0 ? 'rgba(34,197,94,.28)' : 'rgba(255,60,90,.28)'
+              const teamA = m.team_a.trim(); const teamB = m.team_b.trim()
+              const icon = gameIconOf(m.game)
               return (
-                <div key={m.id} className="card" style={{padding:16, display:'flex', flexDirection:'column', gap:12, borderColor: hasBets && worst<0 ? 'rgba(255,60,90,.22)' : 'var(--line)'}}>
-                  {/* header — title + meta */}
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10, flexWrap:'wrap'}}>
-                    <div style={{minWidth:0, flex:1}}>
-                      <div style={{fontWeight:900, fontSize:15, color:'#f1f5f9', lineHeight:1.3}}>{m.title}</div>
-                      <div style={{fontSize:13, color:'#cbd5e1', marginTop:4, fontWeight:600}}>{m.game} · {m.team_a} <span style={{color:'#94a3b8'}}>vs</span> {m.team_b}</div>
-                      <div style={{fontSize:12, color:'#94a3b8', marginTop:2}}>{new Date(m.starts_at).toLocaleString('fa-IR')} · ضرایب <b style={{color:'#e2e8f0'}}>{Number(m.odds_a).toFixed(2)}</b> / <b style={{color:'#e2e8f0'}}>{Number(m.odds_b).toFixed(2)}</b>{m.odds_draw!=null ? <> / <b style={{color:'#e2e8f0'}}>{Number(m.odds_draw).toFixed(2)}</b></> : null} · <span className="badge" style={{fontSize:10, padding:'2px 8px', verticalAlign:'middle'}}>{m.odds_mode==='auto' ? '⚙️ سیستمی' : '✋ دستی'}</span></div>
-                    </div>
-                    <span className={'status status-'+m.status} style={{fontSize:12, padding:'4px 10px', flexShrink:0}}>{m.status==='upcoming'?'پیش‌رو':m.status==='live'?'زنده':'پایان‌یافته'}</span>
-                  </div>
-
-                  {/* exposure summary */}
-                  <div style={{display:'flex', gap:8, flexWrap:'wrap', fontSize:12, color:'#94a3b8', background:'#0d1730', border:'1px solid rgba(255,255,255,.06)', borderRadius:10, padding:'8px 10px'}}>
-                    {hasBets ? <>
-                      <span>کل شرط: <b style={{color:'#e2e8f0'}}>{exp.total.toLocaleString('fa-IR')} ت</b></span>
-                      <span style={{opacity:.35}}>•</span>
-                      <span>روی {m.team_a}: <b style={{color:'#e2e8f0'}}>{exp.a.amt.toLocaleString('fa-IR')} ت</b> <span style={{fontSize:10}}>→ پرداخت {(exp.a.pay).toLocaleString('fa-IR')} ت</span></span>
-                      <span style={{opacity:.35}}>•</span>
-                      <span>روی {m.team_b}: <b style={{color:'#e2e8f0'}}>{exp.b.amt.toLocaleString('fa-IR')} ت</b> <span style={{fontSize:10}}>→ پرداخت {(exp.b.pay).toLocaleString('fa-IR')} ت</span></span>
-                      {m.odds_draw!=null && exp.d.amt>0 && <><span style={{opacity:.35}}>•</span><span>مساوی: <b style={{color:'#e2e8f0'}}>{exp.d.amt.toLocaleString('fa-IR')} ت</b></span></>}
-                    </> : <span style={{color:'#64748b'}}>هنوز شرطی ثبت نشده — سود/ضرر پس از اولین شرط محاسبه می‌شود</span>}
-                  </div>
-
-                  {/* smart P&L — what house makes if each outcome wins */}
-                  {hasBets ? (
-                    <div style={{display:'grid', gridTemplateColumns: m.odds_draw!=null ? '1fr 1fr 1fr' : '1fr 1fr', gap:8}}>
-                      <div style={{background: pnlBg(pA), border:`1px solid ${pnlBd(pA)}`, borderRadius:12, padding:'10px 10px', textAlign:'center'}}>
-                        <div style={{fontSize:11, color:'#94a3b8', fontWeight:700}}>اگر {m.team_a} ببرد</div>
-                        <div style={{fontWeight:900, fontSize:14, marginTop:4, color: pnlColor(pA), letterSpacing:'-.02em'}}>{fmt(pA)}</div>
-                        <div style={{fontSize:10, color: pA>=0 ? '#86efac' : '#fda4af', marginTop:2, fontWeight:600}}>{pA>=0 ? 'سود خانه' : 'ضرر خانه'} · پرداخت {exp.a.pay.toLocaleString('fa-IR')} ت</div>
-                      </div>
-                      <div style={{background: pnlBg(pB), border:`1px solid ${pnlBd(pB)}`, borderRadius:12, padding:'10px 10px', textAlign:'center'}}>
-                        <div style={{fontSize:11, color:'#94a3b8', fontWeight:700}}>اگر {m.team_b} ببرد</div>
-                        <div style={{fontWeight:900, fontSize:14, marginTop:4, color: pnlColor(pB), letterSpacing:'-.02em'}}>{fmt(pB)}</div>
-                        <div style={{fontSize:10, color: pB>=0 ? '#86efac' : '#fda4af', marginTop:2, fontWeight:600}}>{pB>=0 ? 'سود خانه' : 'ضرر خانه'} · پرداخت {exp.b.pay.toLocaleString('fa-IR')} ت</div>
-                      </div>
-                      {m.odds_draw!=null && (
-                        <div style={{background: pnlBg(pD), border:`1px solid ${pnlBd(pD)}`, borderRadius:12, padding:'10px 10px', textAlign:'center'}}>
-                          <div style={{fontSize:11, color:'#94a3b8', fontWeight:700}}>اگر مساوی شود</div>
-                          <div style={{fontWeight:900, fontSize:14, marginTop:4, color: pnlColor(pD), letterSpacing:'-.02em'}}>{fmt(pD)}</div>
-                          <div style={{fontSize:10, color: pD>=0 ? '#86efac' : '#fda4af', marginTop:2, fontWeight:600}}>{pD>=0 ? 'سود خانه' : 'ضرر خانه'} · پرداخت {exp.d.pay.toLocaleString('fa-IR')} ت</div>
+                <div key={m.id} className="match-card" style={{
+                  position:'relative', padding:16, borderRadius:18,
+                  background:'linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.025))',
+                  border: hasBets && worst<0 ? '1px solid rgba(244,63,94,.25)' : '1px solid var(--line)',
+                  display:'flex', flexDirection:'column', gap:14, overflow:'hidden'
+                }}>
+                  <div style={{position:'absolute', top:0, left:24, right:24, height:1, background: m.status==='live' ? 'var(--accent)' : 'rgba(255,255,255,.08)'}}/>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+                    <div style={{display:'flex',alignItems:'center',gap:9,minWidth:0}}>
+                      <div style={{width:30,height:30,borderRadius:10,display:'grid',placeItems:'center',background:'rgba(255,255,255,.05)',border:'1px solid rgba(255,255,255,.06)',fontSize:14,flexShrink:0}}>{icon}</div>
+                      <div style={{minWidth:0}}>
+                        <div style={{fontSize:12,fontWeight:800,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{m.title}</div>
+                        <div style={{marginTop:2,fontSize:10,color:'var(--muted)'}}>
+                          {m.game} · {new Date(m.starts_at).toLocaleString('fa-IR',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})} · <span style={{padding:'1px 6px',borderRadius:999,background:'var(--surface2)',border:'1px solid var(--line)',fontSize:10}}>{m.odds_mode==='auto'?'⚙️ سیستمی':'✋ دستی'}</span>
                         </div>
-                      )}
+                      </div>
                     </div>
-                  ) : (
-                    <div style={{fontSize:11, color:'#64748b', textAlign:'center', background:'rgba(255,255,255,.03)', border:'1px dashed var(--line)', borderRadius:10, padding:'10px'}}>بدون شرط — هر نتیجه‌ای سود ۰ است</div>
-                  )}
-                  {hasBets && worst<0 && <div style={{fontSize:11, color:'#fda4af', background:'rgba(255,60,90,.08)', border:'1px solid rgba(255,60,90,.18)', borderRadius:8, padding:'6px 10px', textAlign:'center'}}>⚠️ ریسک: بدترین حالت <b>{fmt(worst)}</b> — ضرایب را بازبینی کن یا زودتر تسویه کن</div>}
-
-                  <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-                    <button className="btn btn-ghost btn-sm" onClick={()=>setLive(m.id)}>زنده کن</button>
-                    <button className="btn btn-ghost btn-sm" onClick={()=>toggleMode(m)}>{m.odds_mode==='auto'?'دستی کن':'سیستمی کن'}</button>
-                    <button className="btn btn-ghost btn-sm" onClick={()=>recalc(m.id)}>بازمحاسبه</button>
-                    <button className="btn btn-ghost btn-sm" style={{borderColor: pA>=0?'rgba(34,197,94,.3)':undefined, color: pA>=0 ? '#22c55e' : undefined}} onClick={()=>settle(m.id,'team_a')}>برد {m.team_a.slice(0,12)} {hasBets ? `(${fmt(pA)})` : ''}</button>
-                    <button className="btn btn-ghost btn-sm" style={{borderColor: pB>=0?'rgba(34,197,94,.3)':undefined, color: pB>=0 ? '#22c55e' : undefined}} onClick={()=>settle(m.id,'team_b')}>برد {m.team_b.slice(0,12)} {hasBets ? `(${fmt(pB)})` : ''}</button>
-                    {m.odds_draw!=null && <button className="btn btn-ghost btn-sm" onClick={()=>settle(m.id,'draw')}>مساوی {hasBets ? `(${fmt(pD)})` : ''}</button>}
-                    <button className="btn btn-ghost btn-sm" style={{color:'#ff6b7a', marginRight:'auto'}} onClick={()=>removeMatch(m.id)}>حذف</button>
+                    <span className={'status status-'+m.status} style={{fontSize:10,fontWeight:800,padding:'4px 8px',borderRadius:999,flexShrink:0}}>
+                      {m.status==='upcoming'?'پیش‌رو':m.status==='live'?'● زنده':'پایان'}
+                    </span>
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',alignItems:'center',gap:10,padding:'4px 0'}}>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,minWidth:0}}>
+                      <div style={{width:46,height:46,borderRadius:14,display:'grid',placeItems:'center',background:'linear-gradient(145deg, rgba(40,100,180,.35), rgba(20,40,70,.5))',border:'1px solid rgba(255,255,255,.08)',fontSize:17,fontWeight:900}}>{teamA.charAt(0)||'A'}</div>
+                      <div style={{maxWidth:110,textAlign:'center',fontSize:12,fontWeight:800,lineHeight:1.25,wordBreak:'break-word'}}>{teamA}</div>
+                      <div style={{fontSize:14,fontWeight:900,color:'var(--accent)'}}>{Number(m.odds_a).toFixed(2)}×</div>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+                      <span style={{fontSize:9,fontWeight:900,color:'var(--muted)',letterSpacing:'.08em'}}>VS</span>
+                      <div style={{width:1,height:24,background:'var(--line)'}}/>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,minWidth:0}}>
+                      <div style={{width:46,height:46,borderRadius:14,display:'grid',placeItems:'center',background:'linear-gradient(145deg, rgba(170,45,75,.35), rgba(70,20,35,.5))',border:'1px solid rgba(255,255,255,.08)',fontSize:17,fontWeight:900}}>{teamB.charAt(0)||'B'}</div>
+                      <div style={{maxWidth:110,textAlign:'center',fontSize:12,fontWeight:800,lineHeight:1.25,wordBreak:'break-word'}}>{teamB}</div>
+                      <div style={{fontSize:14,fontWeight:900,color:'var(--accent)'}}>{Number(m.odds_b).toFixed(2)}×</div>
+                    </div>
+                  </div>
+                  {m.odds_draw!=null && <div style={{textAlign:'center',padding:'7px 10px',borderRadius:10,border:'1px solid var(--line)',background:'rgba(255,255,255,.035)',fontSize:11}}>مساوی <span style={{marginRight:6,color:'var(--accent)',fontWeight:900,fontSize:12}}>{Number(m.odds_draw).toFixed(2)}×</span></div>}
+                  {m.winner && <div style={{textAlign:'center',padding:'7px 10px',borderRadius:9,background:'rgba(0,229,160,.06)',color:'var(--muted)',fontSize:10}}>برنده: <strong style={{color:'var(--accent)'}}>{m.winner==='team_a'?teamA:m.winner==='team_b'?teamB:'مساوی'}</strong></div>}
+                  <div style={{display:'flex',gap:8,flexWrap:'wrap',fontSize:11,color:'var(--muted)',background:'var(--surface2)',border:'1px solid var(--line)',borderRadius:10,padding:'8px 10px'}}>
+                    {hasBets ? <>
+                      <span>کل: <b style={{color:'var(--text)'}}>{exp.total.toLocaleString('fa-IR')} ت</b></span>
+                      <span style={{opacity:.35}}>•</span>
+                      <span>{teamA}: <b style={{color:'var(--text)'}}>{exp.a.amt.toLocaleString('fa-IR')} ت</b> → {exp.a.pay.toLocaleString('fa-IR')}</span>
+                      <span style={{opacity:.35}}>•</span>
+                      <span>{teamB}: <b style={{color:'var(--text)'}}>{exp.b.amt.toLocaleString('fa-IR')} ت</b> → {exp.b.pay.toLocaleString('fa-IR')}</span>
+                      {m.odds_draw!=null && exp.d.amt>0 && <><span style={{opacity:.35}}>•</span><span>مساوی: <b style={{color:'var(--text)'}}>{exp.d.amt.toLocaleString('fa-IR')} ت</b></span></>}
+                    </> : <span>هنوز شرطی ثبت نشده — P&L پس از اولین شرط</span>}
+                  </div>
+                  {hasBets ? <div style={{display:'grid',gridTemplateColumns: m.odds_draw!=null ? '1fr 1fr 1fr' : '1fr 1fr',gap:8}}>
+                    {[{label:`اگر ${teamA} ببرد`,v:pA,pay:exp.a.pay},{label:`اگر ${teamB} ببرد`,v:pB,pay:exp.b.pay},...(m.odds_draw!=null?[{label:'اگر مساوی',v:pD,pay:exp.d.pay}]:[])].map(b=>(
+                      <div key={b.label} style={{background:b.v>=0?'rgba(34,197,94,.08)':'rgba(244,63,94,.08)',border:`1px solid ${b.v>=0?'rgba(34,197,94,.22)':'rgba(244,63,94,.2)'}`,borderRadius:12,padding:'10px 8px',textAlign:'center'}}>
+                        <div style={{fontSize:11,color:'var(--muted)',fontWeight:700}}>{b.label}</div>
+                        <div style={{fontWeight:900,fontSize:13,marginTop:4,color:b.v>=0?'#22c55e':'#f43f5e'}}>{fmt(b.v)}</div>
+                        <div style={{fontSize:10,color:'var(--muted)',marginTop:2}}>پرداخت {b.pay.toLocaleString('fa-IR')} ت</div>
+                      </div>
+                    ))}
+                  </div> : <div style={{fontSize:11,color:'var(--muted)',textAlign:'center',background:'var(--surface2)',border:'1px dashed var(--line)',borderRadius:10,padding:'10px'}}>بدون شرط — هر نتیجه ۰</div>}
+                  {hasBets && worst<0 && <div style={{fontSize:11,color:'#fecdd3',background:'rgba(244,63,94,.10)',border:'1px solid rgba(244,63,94,.2)',borderRadius:10,padding:'7px 10px',textAlign:'center'}}>⚠️ بدترین حالت <b>{fmt(worst)}</b></div>}
+                  <div style={{display:'flex',gap:6,flexWrap:'wrap',paddingTop:10,borderTop:'1px solid var(--line)'}}>
+                    <button className="btn btn-ghost btn-sm" style={{borderRadius:999}} onClick={()=>setLive(m.id)}>زنده کن</button>
+                    <button className="btn btn-ghost btn-sm" style={{borderRadius:999}} onClick={()=>toggleMode(m)}>{m.odds_mode==='auto'?'دستی کن':'سیستمی کن'}</button>
+                    <button className="btn btn-ghost btn-sm" style={{borderRadius:999}} onClick={()=>recalc(m.id)}>بازمحاسبه</button>
+                    <button className="btn btn-ghost btn-sm" style={{borderRadius:999, borderColor:pA>=0?'rgba(34,197,94,.25)':undefined, color:pA>=0?'#22c55e':undefined}} onClick={()=>settle(m.id,'team_a')}>برد {teamA.slice(0,10)} {hasBets?`(${fmt(pA)})`:''}</button>
+                    <button className="btn btn-ghost btn-sm" style={{borderRadius:999, borderColor:pB>=0?'rgba(34,197,94,.25)':undefined, color:pB>=0?'#22c55e':undefined}} onClick={()=>settle(m.id,'team_b')}>برد {teamB.slice(0,10)} {hasBets?`(${fmt(pB)})`:''}</button>
+                    {m.odds_draw!=null && <button className="btn btn-ghost btn-sm" style={{borderRadius:999}} onClick={()=>settle(m.id,'draw')}>مساوی {hasBets?`(${fmt(pD)})`:''}</button>}
+                    <button className="btn btn-ghost btn-sm" style={{color:'#f43f5e',marginInlineStart:'auto',borderRadius:999}} onClick={()=>removeMatch(m.id)}>حذف</button>
                   </div>
                 </div>
               )
@@ -453,43 +799,70 @@ export default function Admin(){
       )}
 
       {tab==='users' && (
-        <div className="card" style={{marginTop:14,padding:14}}>
-          <h3 style={{fontWeight:800,marginBottom:10}}>کاربران ({users.length})</h3>
+        <div className="card" style={{marginTop:14,padding:0, overflow:'hidden'}}>
+          <div style={{padding:'12px 14px', display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,flexWrap:'wrap', borderBottom:'1px solid var(--line)'}}>
+            <h3 style={{fontWeight:900,fontSize:13}}>کاربران <span style={{fontWeight:700,color:'var(--muted)'}}>· {users.length.toLocaleString('fa-IR')}</span></h3>
+            <input className="input" placeholder="جستجو نام / ایمیل…" value={userQuery} onChange={e=>setUserQuery(e.target.value)} style={{maxWidth:200, padding:'6px 10px', fontSize:12, borderRadius:999}} />
+          </div>
           <div className="table-wrap">
             <table className="table">
-              <thead><tr><th>نام کاربری</th><th>موجودی</th><th>شرط‌ها</th><th>شناسه</th><th></th></tr></thead>
+              <thead><tr><th>کاربر</th><th>ایمیل</th><th>موجودی</th><th>شرط‌ها</th><th>شناسه</th><th>عملیات</th></tr></thead>
               <tbody>
-                {users.map(u=>{
+                {(userQuery.trim()?users.filter(u=>{const q=userQuery.trim().toLowerCase(); return (u.username||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q)||(u.display_name||'').toLowerCase().includes(q)}):users).map(u=>{
                   const st = userStats[u.id]
                   return (
                     <tr key={u.id}>
-                      <td>{u.username || '—'} {u.is_admin ? '👑' : ''}</td>
-                      <td>{Number(u.balance).toLocaleString('fa-IR')} ت</td>
-                      <td>{st ? st.count+' / '+st.total.toLocaleString('fa-IR')+' ت' : '—'}</td>
-                      <td dir="ltr" style={{fontSize:11,fontFamily:'monospace'}}>{u.id.slice(0,8)}…</td>
-                      <td><button className="btn btn-ghost btn-sm" onClick={()=>{navigator.clipboard.writeText(u.id); setMsg('✅ کپی شد: '+u.id)}}>کپی ID</button></td>
+                      <td>
+                        <span style={{fontWeight:700}}>{u.username || '—'}</span>{' '}
+                        {u.is_admin ? <span style={{fontSize:11, padding:'2px 6px', borderRadius:999, background:'rgba(34,197,94,.12)', border:'1px solid rgba(34,197,94,.2)', color:'#22c55e'}}>ادمین</span> : null}
+                      </td>
+                      <td dir="ltr" style={{fontSize:11, color:'var(--muted)', maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{u.email || '—'}</td>
+                      <td style={{fontWeight:800}}>{Number(u.balance).toLocaleString('fa-IR')} <span style={{fontSize:11,color:'var(--muted)'}}>ت</span></td>
+                      <td style={{color:'var(--muted)',fontSize:12}}>{st ? `${st.count.toLocaleString('fa-IR')} / ${st.total.toLocaleString('fa-IR')} ت` : '—'}</td>
+                      <td dir="ltr" style={{fontSize:11,fontFamily:'var(--site-font)', fontVariantNumeric:'tabular-nums', color:'var(--muted)'}}>{u.id.slice(0,8)}…</td>
+                      <td>
+                        <div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
+                          <button className="btn btn-ghost btn-sm" style={{borderRadius:999, padding:'4px 10px'}} onClick={()=>{
+                            navigator.clipboard.writeText(u.id)
+                            setChargeUser(u.id)
+                            setMsg('✅ کپی شد و در فرم شارژ قرار گرفت: '+u.id)
+                          }}>کپی</button>
+                          <button className="btn btn-ghost btn-sm" style={{borderRadius:999, padding:'4px 10px', color: resetId===u.id ? 'var(--accent)' : undefined}} onClick={()=>{
+                            if(resetId===u.id) setResetId(null)
+                            else { setResetId(u.id); setResetPw('') }
+                          }}>{resetId===u.id ? 'بستن' : '🔑 ریست رمز'}</button>
+                        </div>
+                        {resetId===u.id && (
+                          <div style={{display:'flex',gap:6,marginTop:6,alignItems:'center'}}>
+                            <input className="input" placeholder="رمز جدید (≥۶)" value={resetPw} onChange={e=>setResetPw(e.target.value)} type="text" dir="ltr" style={{width:140, padding:'6px 10px', fontSize:12}} />
+                            <button className="btn btn-primary btn-sm" style={{borderRadius:999, padding:'6px 12px'}} onClick={()=>doReset(u)}>تایید</button>
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
           </div>
-          {users.length===0 && <div style={{color:'var(--muted)',fontSize:12,marginTop:8}}>کاربری یافت نشد</div>}
+          {(() => { const qq=userQuery.trim().toLowerCase(); const fl=qq?users.filter(u=>(u.username||'').toLowerCase().includes(qq)||(u.email||'').toLowerCase().includes(qq)||(u.display_name||'').toLowerCase().includes(qq)):users; if(fl.length===0) return <div style={{color:'var(--muted)',fontSize:12,padding:14, textAlign:'center'}}>{users.length===0?'کاربری یافت نشد':'نتیجه‌ای یافت نشد'}</div>; return null })()}
         </div>
       )}
 
       {tab==='charge' && (
-        <div className="card" style={{marginTop:14,padding:14}}>
-          <h3 style={{fontWeight:800,marginBottom:10,fontSize:15}}>شارژ کیف پول (تومان)</h3>
-          <div style={{display:'grid',gap:10}}>
-            <input className="input" placeholder="UUID یا username کاربر" value={chargeUser} onChange={e=>setChargeUser(e.target.value)} dir="ltr"/>
-            <input className="input" placeholder="مبلغ تومان — مثلا 100000" value={chargeAmount} onChange={e=>setChargeAmount(e.target.value)} dir="ltr" inputMode="numeric"/>
-            <button className="btn btn-primary" onClick={charge}>شارژ دستی</button>
-            <div style={{fontSize:11,color:'var(--muted)'}}>از جدول کاربران یک username را کپی کنید یا UUID کامل را وارد کنید.</div>
+        <div className="card" style={{marginTop:14,padding:16, maxWidth:560}}>
+          <h3 style={{fontWeight:900,fontSize:14}}>شارژ کیف پول</h3>
+          <p style={{fontSize:11,color:'var(--muted)',marginTop:4, lineHeight:1.7}}>تومان — username یا UUID کامل. از جدول کاربران کپی کن.</p>
+          <div style={{display:'grid',gap:10, marginTop:12}}>
+            <input className="input" placeholder="UUID یا username" value={chargeUser} onChange={e=>setChargeUser(e.target.value)} dir="ltr"/>
+            <div style={{display:'grid',gridTemplateColumns:'1fr auto',gap:8}}>
+              <input className="input" placeholder="مبلغ — مثلا 100000" value={chargeAmount} onChange={e=>setChargeAmount(e.target.value)} dir="ltr" inputMode="numeric"/>
+              <button className="btn btn-primary" onClick={charge} style={{borderRadius:999, padding:'0 18px', fontWeight:800}}>شارژ</button>
+            </div>
           </div>
-          <div style={{marginTop:12,display:'flex',gap:8,flexWrap:'wrap'}}>
-            <Link to="/admin/settings" className="btn btn-ghost btn-sm">رفتن به تنظیمات سایت →</Link>
-            <Link to="/admin/design" className="btn btn-ghost btn-sm">🎨 مدیریت طراحی سایت →</Link>
+          <div style={{marginTop:12,display:'flex',gap:6,flexWrap:'wrap'}}>
+            <Link to="/admin/settings" className="btn btn-ghost btn-sm" style={{borderRadius:999}}>تنظیمات →</Link>
+            <Link to="/admin/design" className="btn btn-ghost btn-sm" style={{borderRadius:999}}>🎨 طراحی →</Link>
           </div>
         </div>
       )}

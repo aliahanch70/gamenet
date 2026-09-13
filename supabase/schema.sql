@@ -16,6 +16,7 @@ create table public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   username    text unique not null,
   display_name text,
+  email       text,
   is_admin    boolean default false,
   balance     bigint default 0 check (balance >= 0),
   created_at  timestamptz default now()
@@ -106,6 +107,7 @@ create table public.site_settings (
   gallery    jsonb default '[]'::jsonb,
   games      jsonb default '[{"name":"FC 25","icon":"⚽"},{"name":"FC 26","icon":"⚽"},{"name":"Valorant","icon":"🎯"},{"name":"DOTA 2","icon":"⚔️"},{"name":"LoL","icon":"🏰"},{"name":"CoD","icon":"🔫"},{"name":"FIFA","icon":"⚽"}]'::jsonb,
   contact    jsonb default '{"address":"","phone1":"","phone2":"","hours":"","email":""}'::jsonb,
+  widgets    jsonb default '[]'::jsonb,
   design     text default 'minimal',
   updated_at timestamptz default now(),
   updated_by uuid
@@ -210,16 +212,16 @@ begin
     v_username := v_username || v_suffix || case when v_count > 0 then v_count::text else '' end;
   end if;
 
-  insert into public.profiles (id, username, display_name)
-  values (new.id, v_username, v_display);
+  insert into public.profiles (id, username, display_name, email)
+  values (new.id, v_username, v_display, new.email);
 
   return new;
 exception
   when unique_violation then
     -- Fallback: append random suffix
     v_username := v_username || substr(md5(random()::text), 1, 6);
-    insert into public.profiles (id, username, display_name)
-    values (new.id, v_username, v_display);
+    insert into public.profiles (id, username, display_name, email)
+    values (new.id, v_username, v_display, new.email);
     return new;
 end;
 $$;
@@ -701,9 +703,34 @@ grant execute on function public.charge_wallet(uuid, bigint) to authenticated;
 alter table public.site_settings add column if not exists games jsonb default '[{"name":"FC 25","icon":"⚽"},{"name":"FC 26","icon":"⚽"},{"name":"Valorant","icon":"🎯"},{"name":"DOTA 2","icon":"⚔️"},{"name":"LoL","icon":"🏰"},{"name":"CoD","icon":"🔫"},{"name":"FIFA","icon":"⚽"}]'::jsonb;
 update public.site_settings set games='[{"name":"FC 25","icon":"⚽"},{"name":"FC 26","icon":"⚽"},{"name":"Valorant","icon":"🎯"},{"name":"DOTA 2","icon":"⚔️"},{"name":"LoL","icon":"🏰"},{"name":"CoD","icon":"🔫"},{"name":"FIFA","icon":"⚽"}]'::jsonb where games is null;
 insert into public.site_settings (id) values (1) on conflict (id) do nothing;
+-- ── leaderboard public (top 3 by balance) ───────────────────
+create or replace function public.get_leaderboard()
+returns table(username text, balance bigint)
+language sql security definer stable
+as $$ select username, balance from public.profiles order by balance desc limit 3 $$;
+grant execute on function public.get_leaderboard() to anon, authenticated;
+
 
 alter table public.site_settings add column if not exists design text default 'minimal';
 do $$ begin
   alter publication supabase_realtime add table public.site_settings;
 exception when duplicate_object then null;
 end $$;
+-- ── admin reset password (D) — ponytail: security definer, checks is_admin(), updates auth.users via pgcrypto ──
+create extension if not exists "pgcrypto"; -- ponytail: no schema clause → keep where it is (Supabase = extensions)
+create or replace function public.admin_reset_password(p_user_id uuid, p_new_password text)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth, extensions, pgcrypto
+as $$
+begin
+  if not public.is_admin() then raise exception 'دسترسی غیرمجاز'; end if;
+  if char_length(p_new_password) < 6 then raise exception 'رمز باید حداقل ۶ کاراکتر باشد'; end if;
+  if not exists(select 1 from auth.users where id=p_user_id) then raise exception 'کاربر یافت نشد'; end if;
+  update auth.users set encrypted_password=crypt(p_new_password, gen_salt('bf')), updated_at=now() where id=p_user_id;
+  insert into public.notifications(user_id,title,body) values(p_user_id,'🔑 رمز شما بازنشانی شد','رمز عبور توسط مدیر بازنشانی شد. با رمز جدید وارد شوید.');
+end;
+$$;
+grant execute on function public.admin_reset_password(uuid,text) to authenticated;
+

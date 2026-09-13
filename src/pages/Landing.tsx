@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, type Match } from '../lib/supabase'
+import type { Widget } from '../lib/widgets'
 
 const FALLBACK_HERO = {
   badge: 'گیم‌نت حرفه‌ای · تهران',
@@ -41,6 +42,100 @@ const FALLBACK_GAMES: { name: string; icon: string }[] = [
   { name: 'CoD', icon: '🔫' },
 ]
 
+
+function WidgetsRenderer({ widgets }: { widgets: Widget[] }) {
+  const [board, setBoard] = useState<{username:string;balance:number}[]|null>(null)
+  useEffect(()=>{
+    const need = widgets.some(w=> w.enabled && w.type==='leaderboard')
+    if(!need){ setBoard([]); return }
+    supabase.rpc('get_leaderboard').then(({ data })=> setBoard((data as any)||[]))
+  }, [widgets])
+  const vis = widgets.filter(w=> w.enabled)
+  if(!vis.length) return null
+  return (
+    <>
+      {vis.map(w=> {
+        if(w.type==='announcement') return (
+          <div key={w.id} style={{ background:'linear-gradient(90deg, rgba(0,229,160,.18), rgba(0,229,160,.06))', borderTop:'1px solid rgba(0,229,160,.18)', borderBottom:'1px solid rgba(0,229,160,.18)', padding:'8px 16px', textAlign:'center', fontSize:13 }}>{w.props.text}</div>
+        )
+        if(w.type==='stats') return (
+          <section key={w.id} style={{padding:'18px 0'}}>
+            <div className="container">
+              <h3 style={{fontWeight:800,marginBottom:10}}>{w.title}</h3>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
+                {w.props.items.map((it:any,i:number)=>(
+                  <div key={i} className="card" style={{padding:14,textAlign:'center'}}>
+                    <div style={{fontWeight:900,fontSize:22}}>{it.value}</div>
+                    <div style={{fontSize:11,color:'var(--muted)',marginTop:4}}>{it.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )
+        if(w.type==='promo') return (
+          <section key={w.id} style={{padding:'18px 0'}}>
+            <div className="container">
+              <div className="card" style={{padding:14,display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap',background:'linear-gradient(135deg, rgba(0,229,160,.12), rgba(255,255,255,.03))'}}>
+                <span style={{fontWeight:700}}>{w.props.text}</span>
+                <a className="btn btn-primary" href={w.props.link}>{w.props.cta}</a>
+              </div>
+            </div>
+          </section>
+        )
+        if(w.type==='leaderboard') return (
+          <section key={w.id} style={{padding:'18px 0'}}>
+            <div className="container">
+              <h3 style={{fontWeight:800,marginBottom:10}}>{w.title} 🏆</h3>
+              {!board ? <p style={{color:'var(--muted)',fontSize:12}}>در حال بارگذاری…</p> : board.length===0 ? <p style={{color:'var(--muted)',fontSize:12}}>هنوز داده‌ای نیست.</p> : (
+                <div style={{display:'grid',gap:8}}>
+                  {board.map((r,i)=>(
+                    <div key={r.username} className="card" style={{padding:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <span>#{i+1} — {r.username}</span>
+                      <b>{Number(r.balance).toLocaleString('fa-IR')} ت</b>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )
+        if(w.type==='faq') return (
+          <section key={w.id} style={{padding:'18px 0'}}>
+            <div className="container">
+              <h3 style={{fontWeight:800,marginBottom:10}}>{w.title}</h3>
+              <div style={{display:'grid',gap:8}}>
+                {w.props.items.map((it:any,i:number)=>(
+                  <details key={i} className="card" style={{padding:12}}>
+                    <summary style={{fontWeight:700,cursor:'pointer',fontSize:13}}>{it.q}</summary>
+                    <p style={{color:'var(--muted)',fontSize:12,marginTop:8,lineHeight:1.8}}>{it.a}</p>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </section>
+        )
+        if(w.type==='testimonials') return (
+          <section key={w.id} style={{padding:'18px 0'}}>
+            <div className="container">
+              <h3 style={{fontWeight:800,marginBottom:10}}>{w.title}</h3>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
+                {w.props.items.map((it:any,i:number)=>(
+                  <div key={i} className="card" style={{padding:14}}>
+                    <div style={{fontWeight:700}}>{it.name}</div>
+                    <div style={{color:'var(--muted)',fontSize:12,marginTop:6,lineHeight:1.7}}>“{it.text}”</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )
+        return null
+      })}
+    </>
+  )
+}
+
 export default function Landing(){
   const [matches,setMatches]=useState<Match[]>([])
   const [hero,setHero]=useState(FALLBACK_HERO)
@@ -49,6 +144,7 @@ export default function Landing(){
   const [contact,setContact]=useState(FALLBACK_CONTACT)
   const [games,setGames]=useState(FALLBACK_GAMES)
   const [matchesLoading,setMatchesLoading]=useState(true)
+  const [widgets,setWidgets]=useState<Widget[]>([])
 
   useEffect(()=>{
     supabase.from('matches').select('*').eq('status','upcoming').order('starts_at').limit(3).then(r=> { setMatches((r.data as Match[])||[]); setMatchesLoading(false) })
@@ -59,6 +155,7 @@ export default function Landing(){
         if(Array.isArray(data.gallery) && data.gallery.length) setGallery(data.gallery)
         if(data.contact) setContact(data.contact)
         if(Array.isArray(data.games) && data.games.length) setGames(data.games)
+        if(Array.isArray((data as any).widgets)) setWidgets((data as any).widgets)
       }
     })
   },[])
@@ -74,11 +171,11 @@ export default function Landing(){
             </h1>
             <p style={{color:'var(--muted)',maxWidth:520,fontSize:15}}>{hero.desc}</p>
             <div style={{display:'flex',gap:10,marginTop:18,flexWrap:'wrap'}}>
-              <Link className="btn btn-primary" to="/betting">ورود به شرط‌بندی →</Link>
+              <Link className="btn btn-primary" to="/betting">ورود به پیشبینی →</Link>
               <a className="btn btn-ghost" href="#contact">رزرو جایگاه</a>
             </div>
             <div style={{display:'flex',gap:18,marginTop:22,color:'var(--muted)',fontSize:13,flexWrap:'wrap'}}>
-              <span>⏱ ۲۴/۷ باز</span><span>📍 میدان ولیعصر</span><span>⭐ ۴.۸ / ۵۰۰+ نظر</span>
+              <span>⏱ ۲۴/۷ باز</span><span>📍 lمجیدیه جنوبی</span><span>⭐ ۴.۸ / ۵۰۰+ نظر</span>
             </div>
           </div>
           <div className="card" style={{padding:14,background:'linear-gradient(180deg,#162040,#0f1730)'}}>
@@ -140,6 +237,7 @@ export default function Landing(){
         </div>
       </section>
 
+      <WidgetsRenderer widgets={widgets} />
       <section id="contact" style={{padding:'10px 0 28px'}}>
         <div className="container contact-grid">
           <div className="card" style={{padding:16}}>

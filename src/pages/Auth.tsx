@@ -98,7 +98,8 @@ export default function Auth(){
           {err && <div style={{background:'rgba(255,60,90,.12)',border:'1px solid rgba(255,60,90,.3)',padding:'10px 12px',borderRadius:10,fontSize:13,color:'#ff8fa0',wordBreak:'break-word'}}>{err}</div>}
           <button className="btn btn-primary" style={{minHeight:44}} disabled={loading || (mode==='signup' && uStatus==='taken')}>{loading ? '…' : (mode==='login' ? 'ورود' : 'ثبت‌نام')}</button>
         </form>
-        <div style={{marginTop:14,textAlign:'center'}}><Link to="/" style={{fontSize:13,color:'var(--muted)'}}>← بازگشت به خانه</Link></div>
+        <p style={{textAlign:'center',color:'var(--muted)',fontSize:11,marginTop:10}}>فراموشی رمز؟ به مدیر پیام دهید تا رمز شما را بازنشانی کند.</p>
+        <div style={{marginTop:8,textAlign:'center'}}><Link to="/" style={{fontSize:13,color:'var(--muted)'}}>← بازگشت به خانه</Link></div>
       </div>
     </div>
   )

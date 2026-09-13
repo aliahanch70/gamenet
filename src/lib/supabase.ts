@@ -10,7 +10,7 @@ export const supabase = createClient(url, anon, {
 })
 
 // انواع
-export type Profile = { id:string; username:string|null; display_name:string|null; is_admin:boolean; balance:number; created_at:string }
+export type Profile = { id:string; username:string|null; display_name:string|null; email:string|null; is_admin:boolean; balance:number; created_at:string }
 export type Match = {
   id:string; title:string; game:string; team_a:string; team_b:string;
   status:'upcoming'|'live'|'finished'; odds_a:number; odds_b:number; odds_draw:number|null;
@@ -24,4 +24,4 @@ export type Bet = {
 }
 export type Withdrawal = { id:string; user_id:string; amount:number; account:string; status:'pending'|'approved'|'rejected'; note:string|null; created_at:string; decided_at:string|null }
 export type Notification = { id:string; user_id:string; title:string; body:string|null; link:string|null; is_read:boolean; created_at:string }
-export type SiteSettings = { id:number; hero:any; features:any; gallery:any; games:any; contact:any; design?: 'minimal'|'esports'|'glass'|'sportsbook'; updated_at:string }
+export type SiteSettings = { id:number; hero:any; features:any; gallery:any; games:any; contact:any; widgets?: any[]; design?: 'minimal'|'esports'|'glass'|'sportsbook'|'neon'|'midnight'|'arctic'|'stadium'; updated_at:string }

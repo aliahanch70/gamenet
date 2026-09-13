@@ -187,67 +187,411 @@ function BetModal({
   )
 }
 
-function MatchCard({ m, icon, onPick }: { m: Match; icon: string; onPick: (p: 'team_a' | 'team_b' | 'draw') => void }) {
+
+function MatchCard({
+  m,
+  icon,
+  onPick,
+}: {
+  m: Match
+  icon: string
+  onPick: (p: 'team_a' | 'team_b' | 'draw') => void
+}) {
   const disabled = m.status !== 'upcoming'
+
+  const teamA = m.team_a.trim()
+  const teamB = m.team_b.trim()
+
   return (
-    <div className="card" style={{ padding: 14, opacity: disabled ? 0.92 : 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <span style={{ width: 32, height: 32, borderRadius: 999, background: 'rgba(255,255,255,.08)', border: '1px solid var(--line)', display: 'grid', placeItems: 'center', fontSize: 16, flexShrink: 0 }}>{icon}</span>
+    <div
+      className="match-card"
+      style={{
+        position: 'relative',
+        padding: 16,
+        borderRadius: 18,
+        background: 'linear-gradient(145deg, rgba(255,255,255,.055), rgba(255,255,255,.025))',
+        border: '1px solid rgba(255,255,255,.09)',
+        boxShadow: '0 8px 30px rgba(0,0,0,.12)',
+        opacity: disabled ? 0.7 : 1,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+        overflow: 'hidden',
+      }}
+    >
+      {/* subtle top accent */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 24,
+          right: 24,
+          height: 1,
+          background:
+            m.status === 'live'
+              ? 'var(--accent)'
+              : 'rgba(255,255,255,.08)',
+        }}
+      />
+
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 10,
+              display: 'grid',
+              placeItems: 'center',
+              background: 'rgba(255,255,255,.05)',
+              border: '1px solid rgba(255,255,255,.06)',
+              fontSize: 14,
+              flexShrink: 0,
+            }}
+          >
+            {icon}
+          </div>
+
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</div>
-            <div style={{ fontSize: 11, color: 'var(--muted)' }}>{m.game} · {new Date(m.starts_at).toLocaleString('fa-IR')}</div>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {m.title}
+            </div>
+
+            <div
+              style={{
+                marginTop: 2,
+                fontSize: 10,
+                color: 'var(--muted)',
+              }}
+            >
+              {m.game} ·{' '}
+              {new Date(m.starts_at).toLocaleString('fa-IR', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </div>
           </div>
         </div>
-        <span className={'status status-' + m.status}>{m.status === 'upcoming' ? 'پیش‌رو' : m.status === 'live' ? 'زنده' : 'پایان‌یافته'}</span>
+
+        <span
+          className={'status status-' + m.status}
+          style={{
+            fontSize: 10,
+            fontWeight: 800,
+            padding: '4px 8px',
+            borderRadius: 999,
+            flexShrink: 0,
+          }}
+        >
+          {m.status === 'upcoming'
+            ? 'پیش‌رو'
+            : m.status === 'live'
+              ? '● زنده'
+              : 'پایان'}
+        </span>
       </div>
 
-      {/* teams + VS badge */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center' }}>
-        <div style={{ textAlign: 'center', padding: '12px 8px', borderRadius: 14, background: 'rgba(255,255,255,.06)', border: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          <div className="team-orb" style={{ width: 44, height: 44, borderRadius: 999, background: 'linear-gradient(135deg,#1e3a5f,#2a5a9a)', border: '2px solid rgba(255,255,255,.12)', display: 'grid', placeItems: 'center', fontWeight: 900, fontSize: 16, color: '#fff' }}>{m.team_a.trim().charAt(0) || 'A'}</div>
-          <div style={{ fontWeight: 800, fontSize: 12, wordBreak: 'break-word', lineHeight: 1.2 }}>{m.team_a}</div>
-          <span className="odds-pill" style={{ background: 'rgba(0,229,160,.14)', color: 'var(--accent)', border: '1px solid rgba(0,229,160,.3)', padding: '3px 10px', borderRadius: 999, fontSize: 13, fontWeight: 900 }}>{Number(m.odds_a).toFixed(2)}×</span>
+      {/* Matchup */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr auto 1fr',
+          alignItems: 'center',
+          gap: 10,
+          padding: '4px 0',
+        }}
+      >
+        {/* Team A */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 8,
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 14,
+              display: 'grid',
+              placeItems: 'center',
+              background:
+                'linear-gradient(145deg, rgba(40,100,180,.35), rgba(20,40,70,.5))',
+              border: '1px solid rgba(255,255,255,.08)',
+              fontSize: 17,
+              fontWeight: 900,
+            }}
+          >
+            {teamA.charAt(0) || 'A'}
+          </div>
+
+          <div
+            style={{
+              maxWidth: 110,
+              textAlign: 'center',
+              fontSize: 12,
+              fontWeight: 800,
+              lineHeight: 1.25,
+              wordBreak: 'break-word',
+            }}
+          >
+            {teamA}
+          </div>
+
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 900,
+              color: 'var(--accent)',
+            }}
+          >
+            {Number(m.odds_a).toFixed(2)}×
+          </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontWeight: 900, color: 'var(--muted)', fontSize: 13, background: 'rgba(255,255,255,.06)', border: '1px solid var(--line)', padding: '6px 10px', borderRadius: 999 }}>VS</span>
+        {/* VS */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 900,
+              color: 'var(--muted)',
+              letterSpacing: '.08em',
+            }}
+          >
+            VS
+          </span>
+
+          <div
+            style={{
+              width: 1,
+              height: 24,
+              background: 'var(--line)',
+            }}
+          />
         </div>
 
-        <div style={{ textAlign: 'center', padding: '12px 8px', borderRadius: 14, background: 'rgba(255,255,255,.06)', border: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          <div className="team-orb" style={{ width: 44, height: 44, borderRadius: 999, background: 'linear-gradient(135deg,#5a1e2a,#9a2a4a)', border: '2px solid rgba(255,255,255,.12)', display: 'grid', placeItems: 'center', fontWeight: 900, fontSize: 16, color: '#fff' }}>{m.team_b.trim().charAt(0) || 'B'}</div>
-          <div style={{ fontWeight: 800, fontSize: 12, wordBreak: 'break-word', lineHeight: 1.2 }}>{m.team_b}</div>
-          <span className="odds-pill" style={{ background: 'rgba(0,229,160,.14)', color: 'var(--accent)', border: '1px solid rgba(0,229,160,.3)', padding: '3px 10px', borderRadius: 999, fontSize: 13, fontWeight: 900 }}>{Number(m.odds_b).toFixed(2)}×</span>
+        {/* Team B */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 8,
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 14,
+              display: 'grid',
+              placeItems: 'center',
+              background:
+                'linear-gradient(145deg, rgba(170,45,75,.35), rgba(70,20,35,.5))',
+              border: '1px solid rgba(255,255,255,.08)',
+              fontSize: 17,
+              fontWeight: 900,
+            }}
+          >
+            {teamB.charAt(0) || 'B'}
+          </div>
+
+          <div
+            style={{
+              maxWidth: 110,
+              textAlign: 'center',
+              fontSize: 12,
+              fontWeight: 800,
+              lineHeight: 1.25,
+              wordBreak: 'break-word',
+            }}
+          >
+            {teamB}
+          </div>
+
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 900,
+              color: 'var(--accent)',
+            }}
+          >
+            {Number(m.odds_b).toFixed(2)}×
+          </div>
         </div>
       </div>
 
-      {/* bet-draw */}
+      {/* Draw */}
       {m.odds_draw != null && (
-        <div className="bet-draw" style={{ display: 'flex', justifyContent: 'center' }}>
-          <button onClick={() => !disabled && onPick('draw')} disabled={disabled} style={{ fontSize: 12, color: disabled ? 'var(--muted)' : '#fff', background: 'rgba(255,255,255,.06)', border: '1px solid var(--line)', padding: '6px 14px', borderRadius: 999, cursor: disabled ? 'not-allowed' : 'pointer' }}>
-            مساوی: <b className="odds" style={{ color: 'var(--accent)' }}>{Number(m.odds_draw).toFixed(2)}×</b> {disabled ? '' : '— شرط مساوی'}
-          </button>
-        </div>
+        <button
+          onClick={() => !disabled && onPick('draw')}
+          disabled={disabled}
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            borderRadius: 10,
+            border: '1px solid var(--line)',
+            background: 'rgba(255,255,255,.035)',
+            color: disabled ? 'var(--muted)' : 'inherit',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            fontSize: 11,
+            transition: 'all .2s ease',
+          }}
+        >
+          مساوی
+          <span
+            style={{
+              marginRight: 6,
+              color: 'var(--accent)',
+              fontWeight: 900,
+              fontSize: 12,
+            }}
+          >
+            {Number(m.odds_draw).toFixed(2)}×
+          </span>
+        </button>
       )}
 
-      {/* winner */}
+      {/* Winner */}
       {m.winner && (
-        <div style={{ textAlign: 'center', fontSize: 12, background: 'rgba(255,255,255,.04)', border: '1px solid var(--line)', padding: '6px 10px', borderRadius: 10 }}>
-          برنده: <b>{m.winner === 'team_a' ? m.team_a : m.winner === 'team_b' ? m.team_b : 'مساوی'}</b>
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '7px 10px',
+            borderRadius: 9,
+            background: 'rgba(0,229,160,.06)',
+            color: 'var(--muted)',
+            fontSize: 10,
+          }}
+        >
+          برنده:{' '}
+          <strong style={{ color: 'var(--accent)' }}>
+            {m.winner === 'team_a'
+              ? teamA
+              : m.winner === 'team_b'
+                ? teamB
+                : 'مساوی'}
+          </strong>
         </div>
       )}
 
-      {/* CTA */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn btn-primary btn-sm" style={{ flex: '1 1 90px' }} disabled={disabled} onClick={() => onPick('team_a')}>شرط {m.team_a.slice(0, 12)}</button>
-        {m.odds_draw != null && <button className="btn btn-ghost btn-sm" style={{ flex: '1 1 70px' }} disabled={disabled} onClick={() => onPick('draw')}>مساوی</button>}
-        <button className="btn btn-primary btn-sm" style={{ flex: '1 1 90px' }} disabled={disabled} onClick={() => onPick('team_b')}>شرط {m.team_b.slice(0, 12)}</button>
+      {/* Betting Actions */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: m.odds_draw != null ? '1fr .65fr 1fr' : '1fr 1fr',
+          gap: 6,
+        }}
+      >
+        <button
+          disabled={disabled}
+          onClick={() => onPick('team_a')}
+          style={{
+            minWidth: 0,
+            padding: '9px 6px',
+            borderRadius: 10,
+            border: '1px solid rgba(0,229,160,.2)',
+            background: 'rgba(0,229,160,.08)',
+            color: 'var(--accent)',
+            fontSize: 11,
+            fontWeight: 800,
+            cursor: disabled ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {teamA.slice(0, 12)}
+        </button>
+
+        {m.odds_draw != null && (
+          <button
+            disabled={disabled}
+            onClick={() => onPick('draw')}
+            style={{
+              padding: '9px 6px',
+              borderRadius: 10,
+              border: '1px solid var(--line)',
+              background: 'rgba(255,255,255,.04)',
+              color: 'inherit',
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: disabled ? 'not-allowed' : 'pointer',
+            }}
+          >
+            مساوی
+          </button>
+        )}
+
+        <button
+          disabled={disabled}
+          onClick={() => onPick('team_b')}
+          style={{
+            minWidth: 0,
+            padding: '9px 6px',
+            borderRadius: 10,
+            border: '1px solid rgba(0,229,160,.2)',
+            background: 'rgba(0,229,160,.08)',
+            color: 'var(--accent)',
+            fontSize: 11,
+            fontWeight: 800,
+            cursor: disabled ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {teamB.slice(0, 12)}
+        </button>
       </div>
-      {disabled && <div style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>این مسابقه بسته است — شرط جدید پذیرفته نمی‌شود.</div>}
+
+      {/* Closed */}
+      {disabled && (
+        <div
+          style={{
+            textAlign: 'center',
+            fontSize: 10,
+            color: 'var(--muted)',
+          }}
+        >
+          این مسابقه بسته است
+        </div>
+      )}
     </div>
   )
 }
+
 
 export default function Betting() {
   const { profile, refresh, userId } = useAuth() as any

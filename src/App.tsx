@@ -12,12 +12,16 @@ import AdminWithdrawals from './pages/AdminWithdrawals'
 import AdminHouse from './pages/AdminHouse'
 import AdminSettings from './pages/AdminSettings'
 import AdminDesign from './pages/AdminDesign'
+import AdminLayout from './components/AdminLayout'
 
 function applyFont(font: string){
-  document.documentElement.setAttribute('data-font', font)
-  if(font === 'vazir') document.body.style.fontFamily = "'Vazirmatn',system-ui,sans-serif"
-  else if(font === 'samim') document.body.style.fontFamily = "'Samim',system-ui,sans-serif"
-  else document.body.style.fontFamily = "'Vazirmatn',system-ui,sans-serif"
+  const MAP: Record<string,string> = {
+    vazir: "'Vazirmatn',system-ui,sans-serif",
+    samim: "'Samim',system-ui,sans-serif",
+  }
+  const fam = MAP[font] || MAP.vazir
+  document.documentElement.style.setProperty('--site-font', fam)
+  document.body.style.fontFamily = fam
 }
 
 function ScrollToTop(){ const {pathname}=useLocation(); useEffect(()=>{ window.scrollTo({top:0,behavior:'instant' as any}); try{ (window as any).scrollTo({top:0,left:0,behavior:'instant'}) }catch{} },[pathname]); return null }
@@ -61,11 +65,13 @@ export default function App(){
           <Route path="/auth" element={<Auth/>}/>
           <Route path="/betting" element={<Guard><Betting/></Guard>}/>
           <Route path="/wallet" element={<Guard><Wallet/></Guard>}/>
-          <Route path="/admin" element={<Guard admin><Admin/></Guard>}/>
-          <Route path="/admin/withdrawals" element={<Guard admin><AdminWithdrawals/></Guard>}/>
-          <Route path="/admin/house" element={<Guard admin><AdminHouse/></Guard>}/>
-          <Route path="/admin/settings" element={<Guard admin><AdminSettings/></Guard>}/>
-          <Route path="/admin/design" element={<Guard admin><AdminDesign/></Guard>}/>
+          <Route path="/admin" element={<Guard admin><AdminLayout/></Guard>}>
+            <Route index element={<Admin/>}/>
+            <Route path="withdrawals" element={<AdminWithdrawals/>}/>
+            <Route path="house" element={<AdminHouse/>}/>
+            <Route path="settings" element={<AdminSettings/>}/>
+            <Route path="design" element={<AdminDesign/>}/>
+          </Route>
           <Route path="*" element={<Navigate to="/" replace/>}/>
         </Routes>
       </BrowserRouter>
