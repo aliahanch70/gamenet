@@ -147,8 +147,8 @@ export default function Landing() {
   const [widgets, setWidgets] = useState<Widget[]>([])
 
   useEffect(() => {
-    supabase.from('matches').select('*').eq('status', 'upcoming').order('starts_at').limit(3).then(r => { setMatches((r.data as Match[]) || []); setMatchesLoading(false) })
-    supabase.from('site_settings').select('*').eq('id', 1).single().then(({ data }) => {
+    supabase.from('matches').select('id,title,game,team_a,team_b,status,odds_a,odds_b,starts_at').eq('status', 'upcoming').order('starts_at').limit(3).then(r => { setMatches((r.data as Match[]) || []); setMatchesLoading(false) })
+    supabase.from('site_settings').select('hero,features,gallery,games,contact,widgets').eq('id', 1).single().then(({ data }) => {
       if (data) {
         if (data.hero) setHero(data.hero)
         if (Array.isArray(data.features) && data.features.length) setFeatures(data.features)
@@ -220,7 +220,7 @@ export default function Landing() {
           <div className="gallery-grid">
             {gallery.map(g => (
               <div key={g.title} className="card" style={{ overflow: 'hidden' }}>
-                <img src={g.img} alt={g.title} style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }} loading="lazy" />
+                <img src={g.img} alt={g.title} style={{ width: '100%', height: 110, objectFit: 'cover', display: 'block' }} loading="lazy" decoding="async" />
                 <div style={{ padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <b style={{ fontSize: 13 }}>{g.title}</b><span className="badge" style={{ fontSize: 10 }}>{g.tag}</span>
                 </div>

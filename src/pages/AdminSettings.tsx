@@ -68,7 +68,7 @@ export default function AdminSettings() {
   const [msg, setMsg] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.from('site_settings').select('*').eq('id', 1).single().then(({ data, error }) => {
+    supabase.from('site_settings').select('hero,features,gallery,games,contact,widgets').eq('id', 1).single().then(({ data, error }) => {
       if (data) {
         if (data.hero) setHero(data.hero)
         if (Array.isArray(data.features) && data.features.length) setFeatures(data.features)
@@ -163,7 +163,7 @@ export default function AdminSettings() {
         {gallery.map((g, i) => (
           <div key={i} style={{ display: 'flex', gap: 10, marginBottom: 10, background: 'rgba(255,255,255,.04)', padding: 10, borderRadius: 10, alignItems: 'flex-start' }}>
             <div style={{ width: 80, height: 56, borderRadius: 8, overflow: 'hidden', background: '#0d1326', border: '1px solid var(--line)', flexShrink: 0, display: 'grid', placeItems: 'center' }}>
-              {g.img ? <img src={g.img} alt={g.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.currentTarget.style.display = 'none')} /> : <span style={{ fontSize: 10, color: 'var(--muted)' }}>پیش‌نمایش</span>}
+              {g.img ? <img src={g.img} alt={g.title} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => (e.currentTarget.style.display = 'none')} /> : <span style={{ fontSize: 10, color: 'var(--muted)' }}>پیش‌نمایش</span>}
             </div>
             <div style={{ flex: 1, display: 'grid', gap: 6 }}>
               <input className="input" placeholder="آدرس تصویر (https://...)" value={g.img} onChange={e => { const a = [...gallery]; a[i] = { ...a[i], img: e.target.value }; setGallery(a) }} dir="ltr" />

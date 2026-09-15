@@ -3,9 +3,11 @@ import { supabase, type Withdrawal } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
 type Tx = { id:string; amount:number; type:string; note:string|null; created_at:string }
+const TX_PAGE_SIZE = 20
+const WD_PAGE_SIZE = 10
 
 export default function Wallet(){
-  const { profile, refresh, userId } = useAuth() as any
+  const { profile, refresh, userId, updateBalance } = useAuth() as any
   const [txs,setTxs]=useState<Tx[]>([])
   const [wds,setWds]=useState<Withdrawal[]>([])
   const [wdAmount,setWdAmount]=useState('')
@@ -14,15 +16,31 @@ export default function Wallet(){
   const [msg,setMsg]=useState<string|null>(null)
   const [txFilter,setTxFilter]=useState<'all'|'charge'|'bet'|'win'|'refund'|'withdrawal'>('all')
   const [txLoading,setTxLoading]=useState(true)
+  const [txPage,setTxPage]=useState(0)
+  const [txHasMore,setTxHasMore]=useState(false)
+  const [wdPage,setWdPage]=useState(0)
+  const [wdHasMore,setWdHasMore]=useState(false)
 
-  const load = async()=>{
+  const loadTxs = async(page:number)=>{
     if(!userId) return
     setTxLoading(true)
-    const { data: t } = await supabase.from('transactions').select('*').eq('user_id', userId).order('created_at',{ascending:false}).limit(50)
-    setTxs((t as Tx[])||[])
-    const { data: w } = await supabase.from('withdrawals').select('*').eq('user_id', userId).order('created_at',{ascending:false}).limit(20)
-    setWds((w as Withdrawal[])||[])
+    const from=page*TX_PAGE_SIZE, to=from+TX_PAGE_SIZE-1
+    const { data, count } = await (supabase.from('transactions') as any).select('id,amount,type,note,created_at',{count:'exact'}).eq('user_id', userId).order('created_at',{ascending:false}).range(from,to)
+    setTxs((data as Tx[])||[])
+    setTxHasMore(count!=null ? (from+TX_PAGE_SIZE < count) : ((data as any[])?.length===TX_PAGE_SIZE))
+    setTxPage(page)
     setTxLoading(false)
+  }
+  const loadWds = async(page:number)=>{
+    if(!userId) return
+    const from=page*WD_PAGE_SIZE, to=from+WD_PAGE_SIZE-1
+    const { data, count } = await (supabase.from('withdrawals') as any).select('id,amount,account,status,note,created_at,decided_at',{count:'exact'}).eq('user_id', userId).order('created_at',{ascending:false}).range(from,to)
+    setWds((data as Withdrawal[])||[])
+    setWdHasMore(count!=null ? (from+WD_PAGE_SIZE < count) : ((data as any[])?.length===WD_PAGE_SIZE))
+    setWdPage(page)
+  }
+  const load = async()=>{
+    await Promise.all([loadTxs(txPage), loadWds(wdPage)])
   }
   useEffect(()=>{ if(userId) load(); else setTxLoading(false) },[userId])
 
@@ -34,7 +52,7 @@ export default function Wallet(){
     setWdBusy(true)
     const { error } = await supabase.rpc('request_withdrawal',{ p_amount: amt, p_account: wdAccount.trim() })
     if(error) setMsg(error.message)
-    else { setMsg('✅ درخواست ثبت شد — پس از تایید ادمین واریز می‌شود'); setWdAmount(''); setWdAccount(''); await load(); await refresh() }
+    else { setMsg('✅ درخواست ثبت شد — پس از تایید ادمین واریز می‌شود'); setWdAmount(''); setWdAccount(''); try{ updateBalance(-amt) }catch{}; await loadWds(0); await loadTxs(0); await refresh() }
     setWdBusy(false)
   }
 
@@ -45,7 +63,7 @@ export default function Wallet(){
         <div style={{color:'var(--muted)',fontSize:12}}>موجودی فعلی</div>
         <div style={{fontSize:'clamp(28px, 7vw, 36px)',fontWeight:900,marginTop:4,wordBreak:'break-all'}}>{profile ? profile.balance.toLocaleString('fa-IR') : '—'} <span style={{fontSize:14,fontWeight:600}}>تومان</span></div>
         <div style={{marginTop:12,display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
-          <button className="btn btn-ghost btn-sm" onClick={async()=>{ await refresh(); await load() }}>بروزرسانی</button>
+          <button className="btn btn-ghost btn-sm" onClick={async()=>{ await refresh(); await loadTxs(0); await loadWds(0) }}>بروزرسانی</button>
           <span style={{fontSize:12,color:'var(--muted)'}}>شارژ توسط پشتیبانی انجام می‌شود.</span>
         </div>
       </div>
@@ -78,6 +96,13 @@ export default function Wallet(){
               )
             })}
           </div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginTop:8}}>
+            <span style={{fontSize:11,color:'var(--muted)'}}>صفحه {(wdPage+1).toLocaleString('fa-IR')}</span>
+            <div style={{display:'flex',gap:6}}>
+              <button className="btn btn-ghost btn-sm" disabled={wdPage===0} onClick={()=> loadWds(wdPage-1)} style={{borderRadius:999}}>قبلی</button>
+              <button className="btn btn-ghost btn-sm" disabled={!wdHasMore} onClick={()=> loadWds(wdPage+1)} style={{borderRadius:999}}>بعدی</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -109,6 +134,13 @@ export default function Wallet(){
               </tr>
             ))}</tbody>
           </table>
+          </div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,padding:'10px 12px',borderTop:'1px solid var(--line)'}}>
+            <span style={{fontSize:11,color:'var(--muted)'}}>صفحه {(txPage+1).toLocaleString('fa-IR')}</span>
+            <div style={{display:'flex',gap:6}}>
+              <button className="btn btn-ghost btn-sm" disabled={txPage===0} onClick={()=> loadTxs(txPage-1)} style={{borderRadius:999}}>قبلی</button>
+              <button className="btn btn-ghost btn-sm" disabled={!txHasMore} onClick={()=> loadTxs(txPage+1)} style={{borderRadius:999}}>بعدی</button>
+            </div>
           </div>
         </div>
       })()}

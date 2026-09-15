@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import AdminBell from './AdminBell'
 
 const NAV: { to:string; label:string; icon:string; end?:boolean }[] = [
   { to:'/admin', label:'داشبورد', icon:'📊', end:true },
@@ -15,15 +15,7 @@ export default function AdminLayout(){
   const { profile } = useAuth() as any
   const loc = useLocation()
   const [open,setOpen]=useState(false)
-  const [pend,setPend]=useState<number| null>(null)
   useEffect(()=>{ setOpen(false) },[loc.pathname])
-  useEffect(()=>{
-    let alive=true
-    supabase.from('withdrawals').select('*',{count:'exact',head:true}).eq('status','pending').then(r=>{
-      if(alive) setPend(typeof r.count==='number'? r.count : null)
-    })
-    return ()=>{ alive=false }
-  },[loc.pathname])
   return (
     <div className="admin-shell">
       <aside className={`admin-side ${open?'open':''}`}>
@@ -45,7 +37,7 @@ export default function AdminLayout(){
               <NavLink key={n.to} to={n.to} end={n.end} className={({isActive})=> 'admin-side-link'+(isActive?' active':'')}>
                 <span style={{fontSize:14}}>{n.icon}</span>
                 <span style={{flex:1}}>{n.label}</span>
-                {isWith && pend!==null && pend>0 && <span style={{fontSize:11,fontWeight:800,background:'var(--accent)',color:'#052e16',padding:'2px 7px',borderRadius:999}}>{pend.toLocaleString('fa-IR')}</span>}
+                {isWith && <AdminBell />}
               </NavLink>
             )
           })}

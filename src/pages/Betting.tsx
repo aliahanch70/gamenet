@@ -594,7 +594,7 @@ function MatchCard({
 
 
 export default function Betting() {
-  const { profile, refresh, userId } = useAuth() as any
+  const { profile, refresh, userId, updateBalance } = useAuth() as any
   const [matches, setMatches] = useState<Match[]>([])
   const [bets, setBets] = useState<Bet[]>([])
   const [cancelId, setCancelId] = useState<string | null>(null)
@@ -604,13 +604,18 @@ export default function Betting() {
   const [betFilter, setBetFilter] = useState<'all'|'pending'|'won'|'lost'|'refunded'>('all')
   const [receipt, setReceipt] = useState<Receipt|null>(null)
   const [loading, setLoading] = useState(true)
+  const BETS_PAGE_SIZE = 20
+  const [betsPage,setBetsPage]=useState(0)
+  const [betsHasMore,setBetsHasMore]=useState(false)
 
   const load = async () => {
     setLoading(true)
-    const { data: ms } = await supabase.from('matches').select('*').order('starts_at', { ascending: true })
+    const { data: ms } = await supabase.from('matches').select('id,title,game,team_a,team_b,status,odds_a,odds_b,odds_draw,odds_mode,margin,winner,starts_at,created_at').order('starts_at', { ascending: true })
     setMatches((ms as Match[]) || [])
-    if (!userId) { setBets([]); return }
-    const { data: bs } = await supabase.from('bets').select('*, matches(*)').eq('user_id', userId).order('created_at', { ascending: false }).limit(50)
+    if (!userId) { setBets([]); setLoading(false); return }
+    const from = betsPage*BETS_PAGE_SIZE, to = from+BETS_PAGE_SIZE-1
+    const { data: bs, count: betsCount } = await (supabase.from('bets') as any).select('id,user_id,match_id,pick,amount,odds,potential_payout,status,created_at, matches(id,title,game,team_a,team_b,status)',{count:'exact'}).eq('user_id', userId).order('created_at', { ascending: false }).range(from,to)
+    setBetsHasMore(betsCount!=null ? (from+BETS_PAGE_SIZE < betsCount) : ((bs as any[])?.length===BETS_PAGE_SIZE))
     setBets((bs as any[]) || [])
     setLoading(false)
   }
@@ -618,18 +623,13 @@ export default function Betting() {
   const loadIcons = async () => {
     try {
       const { data } = await supabase.from('site_settings').select('games').limit(1).maybeSingle() as any
-      if (data?.games && typeof data.games === 'object') {
-        setGameIcons({ ...FALLBACK_ICONS, ...data.games })
-        return
-      }
-      const { data: kv } = await supabase.from('site_settings').select('value').eq('key', 'games').maybeSingle() as any
-      if (kv?.value && typeof kv.value === 'object') setGameIcons({ ...FALLBACK_ICONS, ...kv.value })
+      if (data?.games && typeof data.games === 'object') setGameIcons({ ...FALLBACK_ICONS, ...data.games })
     } catch {
       // keep FALLBACK_ICONS
     }
   }
 
-  useEffect(() => { load() }, [userId])
+  useEffect(() => { load() }, [userId, betsPage])
   useEffect(() => { loadIcons() }, [])
   useEffect(()=>{
     if(!userId) return
@@ -641,14 +641,15 @@ export default function Betting() {
         else if(p.eventType==='DELETE' && o) setMatches((s: Match[])=> s.filter(m=> m.id!==o.id))
       })
       .on('postgres_changes',{event:'*',schema:'public',table:'bets', filter:`user_id=eq.${userId}`}, ()=>{
-        supabase.from('bets').select('*, matches(*)').eq('user_id', userId).order('created_at',{ascending:false}).limit(50).then(({data}:any)=> setBets((data as any[])||[]))
+        const from = betsPage*BETS_PAGE_SIZE, to = from+BETS_PAGE_SIZE-1
+        ;(supabase.from('bets') as any).select('id,user_id,match_id,pick,amount,odds,potential_payout,status,created_at, matches(id,title,game,team_a,team_b,status)',{count:'exact'}).eq('user_id', userId).order('created_at',{ascending:false}).range(from,to).then(({data,count}:any)=>{ setBets((data as any[])||[]); setBetsHasMore(count!=null ? (from+BETS_PAGE_SIZE < count) : ((data as any[])?.length===BETS_PAGE_SIZE)) })
         refresh()
       })
       .subscribe()
     return ()=>{ supabase.removeChannel(ch) }
-  },[userId])
+  },[userId, betsPage])
 
-  const onPlaced = async (r?: Receipt) => { if(r) setReceipt(r); await load(); await refresh() }
+  const onPlaced = async (r?: Receipt) => { if(r) setReceipt(r); await refresh(); const from = betsPage*BETS_PAGE_SIZE, to = from+BETS_PAGE_SIZE-1; const { data: nb, count } = await (supabase.from('bets') as any).select('id,user_id,match_id,pick,amount,odds,potential_payout,status,created_at, matches(id,title,game,team_a,team_b,status)',{count:'exact'}).eq('user_id', userId).order('created_at',{ascending:false}).range(from,to); if(nb) { setBets((nb as any[])||[]); setBetsHasMore(count!=null ? (from+BETS_PAGE_SIZE < count) : ((nb as any[])?.length===BETS_PAGE_SIZE)) } }
 
   const cancel = async (b: Bet) => {
     const st = (b as any).matches?.status
@@ -657,7 +658,7 @@ export default function Betting() {
     setCancelId(b.id)
     const { error } = await supabase.rpc('cancel_bet', { p_bet_id: b.id })
     if (error) alert(error.message)
-    else await onPlaced()
+    else { setBets(s=> s.filter(x=> x.id!==b.id)); try{ updateBalance(Number(b.amount)) }catch{}; await refresh() }
     setCancelId(null)
   }
 
@@ -734,7 +735,7 @@ export default function Betting() {
           </div>
         )}
       </div>
-      {loading ? <div style={{display:'grid',gap:10,marginTop:10}}>{[0,1,2].map(i=> <div key={i} className="skeleton skeleton-row" />)}</div> : filteredBets.length === 0 ? <div className="card" style={{ padding: '18px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 13, marginTop:10 }}>{bets.length===0?'هنوز شرطی ثبت نکرده‌اید — از بالا یک مسابقه را انتخاب کنید.':'در این فیلتر شرطی نیست.'}</div> :
+      {loading ? <div style={{display:'grid',gap:10,marginTop:10}}>{[0,1,2].map(i=> <div key={i} className="skeleton skeleton-row" />)}</div> : filteredBets.length === 0 ? <div className="card" style={{ padding: '18px 14px', textAlign: 'center', color: 'var(--muted)', fontSize: 13, marginTop:10 }}>{bets.length===0?'هنوز شرطی ثبت نکرده‌اید — از بالا یک مسابقه را انتخاب کنید.':'در این فیلتر شرطی نیست.'}</div> : <>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 10, marginTop:10 }}>
           {filteredBets.map(b => {
             const canCancel = b.status === 'pending' && (b as any).matches?.status === 'upcoming'
@@ -779,6 +780,13 @@ export default function Betting() {
             )
           })}
         </div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginTop:10}}>
+          <span style={{fontSize:11,color:'var(--muted)'}}>صفحه {(betsPage+1).toLocaleString('fa-IR')}</span>
+          <div style={{display:'flex',gap:6}}>
+            <button className="btn btn-ghost btn-sm" disabled={betsPage===0} onClick={async()=>{ const np=betsPage-1; setBetsPage(np); const from=np*BETS_PAGE_SIZE,to=from+BETS_PAGE_SIZE-1; const { data, count }=await (supabase.from('bets') as any).select('id,user_id,match_id,pick,amount,odds,potential_payout,status,created_at, matches(id,title,game,team_a,team_b,status)',{count:'exact'}).eq('user_id', userId).order('created_at',{ascending:false}).range(from,to); setBets((data as any[])||[]); setBetsHasMore(count!=null ? (from+BETS_PAGE_SIZE < count) : ((data as any[])?.length===BETS_PAGE_SIZE)) }} style={{borderRadius:999}}>قبلی</button>
+            <button className="btn btn-ghost btn-sm" disabled={!betsHasMore} onClick={async()=>{ const np=betsPage+1; setBetsPage(np); const from=np*BETS_PAGE_SIZE,to=from+BETS_PAGE_SIZE-1; const { data, count }=await (supabase.from('bets') as any).select('id,user_id,match_id,pick,amount,odds,potential_payout,status,created_at, matches(id,title,game,team_a,team_b,status)',{count:'exact'}).eq('user_id', userId).order('created_at',{ascending:false}).range(from,to); setBets((data as any[])||[]); setBetsHasMore(count!=null ? (from+BETS_PAGE_SIZE < count) : ((data as any[])?.length===BETS_PAGE_SIZE)) }} style={{borderRadius:999}}>بعدی</button>
+          </div>
+        </div></>
       }
 
       {modal && (

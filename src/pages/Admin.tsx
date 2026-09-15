@@ -205,10 +205,21 @@ export default function Admin(){
     setForm({...form, margin:val})
   }
 
-  const load = async()=>{
-    const { data:us } = await supabase.from('profiles').select('*').order('created_at',{ascending:false}).limit(100)
+  const USERS_PAGE_SIZE = 20
+  const [usersPage,setUsersPage]=useState(0)
+  const [usersHasMore,setUsersHasMore]=useState(false)
+  const [usersTotal,setUsersTotal]=useState(0)
+  const loadUsers = async(page:number)=>{
+    const from=page*USERS_PAGE_SIZE, to=from+USERS_PAGE_SIZE-1
+    const { data:us, count } = await (supabase.from('profiles') as any).select('id,username,display_name,email,phone,is_admin,balance,created_at',{count:'exact'}).order('created_at',{ascending:false}).range(from,to)
     setUsers((us as Profile[])||[])
-    const { data:ms } = await supabase.from('matches').select('*').order('starts_at',{ascending:true})
+    setUsersTotal(count||0)
+    setUsersHasMore(count!=null ? (from+USERS_PAGE_SIZE < count) : ((us as any[])?.length===USERS_PAGE_SIZE))
+    setUsersPage(page)
+  }
+  const load = async()=>{
+    await loadUsers(usersPage)
+    const { data:ms } = await supabase.from('matches').select('id,title,game,team_a,team_b,status,odds_a,odds_b,odds_draw,odds_mode,margin,winner,starts_at,created_at').order('starts_at',{ascending:true})
     setMatches((ms as Match[])||[])
     const { data:bets } = await supabase.from('bets').select('match_id,pick,amount,potential_payout,status').eq('status','pending')
     const exp:Exposure={}
@@ -275,7 +286,7 @@ export default function Admin(){
     }
     const { error, data } = await supabase.rpc('charge_wallet',{ p_user_id:uid, p_amount:amt })
     if(error) setMsg('خطا: '+error.message)
-    else { setMsg('✅ شارژ شد — موجودی جدید: '+Number(data).toLocaleString('fa-IR')+' ت'); load() }
+    else { setMsg('✅ شارژ شد — موجودی جدید: '+Number(data).toLocaleString('fa-IR')+' ت'); setUsers(us=> us.map(x=> x.id===uid ? { ...x, balance: Number(data) } as Profile : x)) }
   }
   const charge = doCharge
 
@@ -864,10 +875,6 @@ export default function Admin(){
               <input className="input" placeholder="مبلغ — مثلا 100000" value={chargeAmount} onChange={e=>setChargeAmount(e.target.value)} dir="ltr" inputMode="numeric"/>
               <button className="btn btn-primary" onClick={charge} style={{borderRadius:999, padding:'0 18px', fontWeight:800}}>شارژ</button>
             </div>
-          </div>
-          <div style={{marginTop:12,display:'flex',gap:6,flexWrap:'wrap'}}>
-            <Link to="/admin/settings" className="btn btn-ghost btn-sm" style={{borderRadius:999}}>تنظیمات →</Link>
-            <Link to="/admin/design" className="btn btn-ghost btn-sm" style={{borderRadius:999}}>🎨 طراحی →</Link>
           </div>
         </div>
       )}

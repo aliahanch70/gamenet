@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
@@ -7,13 +7,28 @@ import Landing from './pages/Landing'
 import Auth from './pages/Auth'
 import Betting from './pages/Betting'
 import Wallet from './pages/Wallet'
-import Admin from './pages/Admin'
-import AdminWithdrawals from './pages/AdminWithdrawals'
-import AdminHouse from './pages/AdminHouse'
-import AdminSettings from './pages/AdminSettings'
-import AdminDesign from './pages/AdminDesign'
-import AdminLayout from './components/AdminLayout'
 import ProfilePage from './pages/Profile'
+
+// ponytail: admin routes lazy — keeps initial bundle ~vendor+app, admin chunk loads on /admin only
+const Admin = lazy(() => import('./pages/Admin'))
+const AdminWithdrawals = lazy(() => import('./pages/AdminWithdrawals'))
+const AdminHouse = lazy(() => import('./pages/AdminHouse'))
+const AdminSettings = lazy(() => import('./pages/AdminSettings'))
+const AdminDesign = lazy(() => import('./pages/AdminDesign'))
+const AdminLayout = lazy(() => import('./components/AdminLayout'))
+
+function AdminFallback(){
+  return (
+    <div className="container" style={{padding:'20px 14px',minHeight:'60vh'}}>
+      <div className="skeleton" style={{height:22,width:120,marginBottom:14}}/>
+      <div style={{display:'grid',gap:10}}>
+        <div className="skeleton skeleton-card"/>
+        <div className="skeleton skeleton-card" style={{height:120}}/>
+        <div className="skeleton" style={{height:14,width:'60%'}}/>
+      </div>
+    </div>
+  )
+}
 
 function applyFont(font: string){
   const MAP: Record<string,string> = {
@@ -67,12 +82,12 @@ export default function App(){
           <Route path="/betting" element={<Guard><Betting/></Guard>}/>
           <Route path="/wallet" element={<Guard><Wallet/></Guard>}/>
           <Route path="/profile" element={<Guard><ProfilePage/></Guard>}/>
-          <Route path="/admin" element={<Guard admin><AdminLayout/></Guard>}>
-            <Route index element={<Admin/>}/>
-            <Route path="withdrawals" element={<AdminWithdrawals/>}/>
-            <Route path="house" element={<AdminHouse/>}/>
-            <Route path="settings" element={<AdminSettings/>}/>
-            <Route path="design" element={<AdminDesign/>}/>
+          <Route path="/admin" element={<Guard admin><Suspense fallback={<AdminFallback/>}><AdminLayout/></Suspense></Guard>}>
+            <Route index element={<Suspense fallback={<AdminFallback/>}><Admin/></Suspense>}/>
+            <Route path="withdrawals" element={<Suspense fallback={<AdminFallback/>}><AdminWithdrawals/></Suspense>}/>
+            <Route path="house" element={<Suspense fallback={<AdminFallback/>}><AdminHouse/></Suspense>}/>
+            <Route path="settings" element={<Suspense fallback={<AdminFallback/>}><AdminSettings/></Suspense>}/>
+            <Route path="design" element={<Suspense fallback={<AdminFallback/>}><AdminDesign/></Suspense>}/>
           </Route>
           <Route path="*" element={<Navigate to="/" replace/>}/>
         </Routes>

@@ -10,53 +10,55 @@ export default function AdminWithdrawals(){
   const [msg,setMsg]=useState<string|null>(null)
   const [busy,setBusy]=useState<string|null>(null)
   const [q,setQ]=useState('')
+  const [page,setPage]=useState(0)
+  const [hasMore,setHasMore]=useState(false)
+  const WD_PAGE_SIZE = 20
 
-  const load = async()=>{
-    const p = supabase.from('withdrawals').select('*',{count:'exact',head:true}).eq('status','pending').then(r=>r.count||0)
-    const a = supabase.from('withdrawals').select('*',{count:'exact',head:true}).eq('status','approved').then(r=>r.count||0)
-    const rj = supabase.from('withdrawals').select('*',{count:'exact',head:true}).eq('status','rejected').then(r=>r.count||0)
-    const [cP,cA,cR] = await Promise.all([p,a,rj])
-    setCounts({pending:cP, approved:cA, rejected:cR, all: cP+cA+cR})
-    let qb = supabase.from('withdrawals').select('*, profiles(username,display_name,email)').order('created_at',{ascending:false}).limit(100)
+  const load = async(p:number = page)=>{
+    const { data: cData } = await supabase.rpc('get_withdrawal_counts')
+    setCounts(cData || {pending:0,approved:0,rejected:0,all:0})
+    const from = p*WD_PAGE_SIZE, to = from+WD_PAGE_SIZE-1
+    let qb:any = (supabase.from('withdrawals') as any).select('id,user_id,amount,account,status,note,created_at,decided_at, profiles(username,display_name,email)',{count:'exact'}).order('created_at',{ascending:false}).range(from,to)
     if(filter!=='all') qb = qb.eq('status', filter)
-    const { data } = await qb
+    const { data, count } = await qb
     setRows((data as Row[])||[])
+    setPage(p); setHasMore(count!=null ? (from+WD_PAGE_SIZE < count) : ((data as any[])?.length===WD_PAGE_SIZE))
   }
-  // ponytail: realtime push for pending withdrawals; fallback poll 15s if channel fails
+  // ponytail: realtime push for pending withdrawals
   const [liveToast,setLiveToast]=useState<string|null>(null)
-  useEffect(()=>{ load() },[filter])
+  useEffect(()=>{ setPage(0); load(0) },[filter])
   useEffect(()=>{
     let ch:any=null
     let alive=true
     const onChange = (payload:any)=>{
       const ev = payload?.eventType
       const row = payload?.new
-      // ponytail: any insert/update/delete triggers reload; INSERT pending shows toast
       if(ev==='INSERT' && row?.status==='pending'){
         setLiveToast('درخواست برداشت جدید: '+Number(row.amount||0).toLocaleString('fa-IR')+' ت')
         setTimeout(()=> alive && setLiveToast(null), 4000)
       }
-      load()
+      load(page)
     }
     try{ ch = (supabase as any).channel('wd-admin-live').on('postgres_changes',{event:'*',schema:'public',table:'withdrawals'}, onChange).subscribe() }catch{}
-    const iv = setInterval(()=>{ if(alive) load() }, 15000)
-    const onVis = ()=>{ if(document.visibilityState==='visible' && alive) load() }
+    const onVis = ()=>{ if(document.visibilityState==='visible' && alive) load(page) }
     document.addEventListener('visibilitychange', onVis)
-    return ()=>{ alive=false; clearInterval(iv); document.removeEventListener('visibilitychange', onVis); try{ if(ch) (supabase as any).removeChannel(ch) }catch{} }
-  },[filter])
+    return ()=>{ alive=false; document.removeEventListener('visibilitychange', onVis); try{ if(ch) (supabase as any).removeChannel(ch) }catch{} }
+  },[filter, page])
 
   const approve = async(id:string)=>{
     if(!confirm('تایید برداشت — واریز انجام شد؟')) return
     setBusy(id)
     const { error } = await supabase.rpc('approve_withdrawal',{ p_withdrawal_id: id })
-    if(error) setMsg(error.message); else { setMsg('✅ تایید شد'); await load() }
+    if(error) setMsg(error.message)
+    else { setMsg('✅ تایید شد'); setRows(rs=> rs.map(r=> r.id===id ? { ...r, status:'approved' as const, decided_at: new Date().toISOString() } : r)) }
     setBusy(null)
   }
   const reject = async(id:string)=>{
     const reason = prompt('دلیل رد (اختیاری):') || ''
     setBusy(id)
     const { error } = await supabase.rpc('reject_withdrawal',{ p_withdrawal_id:id, p_reason: reason })
-    if(error) setMsg(error.message); else { setMsg('↩️ رد شد — مبلغ برگشت خورد'); await load() }
+    if(error) setMsg(error.message)
+    else { setMsg('↩️ رد شد — مبلغ برگشت خورد'); setRows(rs=> rs.map(r=> r.id===id ? { ...r, status:'rejected' as const, decided_at: new Date().toISOString(), note: reason || r.note } : r)) }
     setBusy(null)
   }
 
@@ -106,6 +108,13 @@ export default function AdminWithdrawals(){
           })}
         </div>
         )})()}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:8,marginTop:12}}>
+        <span style={{fontSize:11,color:'var(--muted)'}}>صفحه {(page+1).toLocaleString('fa-IR')}</span>
+        <div style={{display:'flex',gap:6}}>
+          <button className="btn btn-ghost btn-sm" disabled={page===0} onClick={()=> load(page-1)} style={{borderRadius:999}}>قبلی</button>
+          <button className="btn btn-ghost btn-sm" disabled={!hasMore} onClick={()=> load(page+1)} style={{borderRadius:999}}>بعدی</button>
+        </div>
+      </div>
     </div>
   )
 }

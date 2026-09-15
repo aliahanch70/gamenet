@@ -8,7 +8,7 @@ export default function AdminHouse(){
 
   useEffect(()=>{
     (async()=>{
-      const { data:ms } = await supabase.from('matches').select('*').order('starts_at',{ascending:false})
+      const { data:ms } = await supabase.from('matches').select('id,title,team_a,team_b,status,winner,starts_at').order('starts_at',{ascending:false})
       setMatches((ms as Match[])||[])
       const { data: settled } = await supabase.from('bets').select('match_id,amount,potential_payout,status').in('status',['won','lost'])
       const by: Record<string,{total:number,paid:number,profit:number,count:number}> = {}

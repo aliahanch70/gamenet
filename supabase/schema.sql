@@ -739,3 +739,21 @@ end;
 $$;
 grant execute on function public.admin_reset_password(uuid,text) to authenticated;
 
+-- ── withdrawal counts in one RPC (A+C) — ponytail: replaces 3 count(*) queries with one round-trip
+create or replace function public.get_withdrawal_counts()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare cP int; cA int; cR int;
+begin
+  if not public.is_admin() then raise exception 'دسترسی غیرمجاز'; end if;
+  select count(*) into cP from public.withdrawals where status='pending';
+  select count(*) into cA from public.withdrawals where status='approved';
+  select count(*) into cR from public.withdrawals where status='rejected';
+  return jsonb_build_object('pending',cP,'approved',cA,'rejected',cR,'all',cP+cA+cR);
+end
+$$;
+grant execute on function public.get_withdrawal_counts() to authenticated;
+
