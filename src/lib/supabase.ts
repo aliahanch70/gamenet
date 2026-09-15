@@ -10,7 +10,7 @@ export const supabase = createClient(url, anon, {
 })
 
 // انواع
-export type Profile = { id:string; username:string|null; display_name:string|null; email:string|null; is_admin:boolean; balance:number; created_at:string }
+export type Profile = { id:string; username:string|null; display_name:string|null; email:string|null; phone:string|null; is_admin:boolean; balance:number; created_at:string }
 export type Match = {
   id:string; title:string; game:string; team_a:string; team_b:string;
   status:'upcoming'|'live'|'finished'; odds_a:number; odds_b:number; odds_draw:number|null;

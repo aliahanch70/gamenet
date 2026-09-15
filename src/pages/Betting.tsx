@@ -671,7 +671,7 @@ export default function Betting() {
   return (
     <div className="container" style={{ padding: '20px 14px 28px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-        <h2 style={{ fontWeight: 900, fontSize: 22 }}>شرط‌بندی مسابقات</h2>
+        <h2 style={{ fontWeight: 900, fontSize: 22 }}>پیشبینی مسابقات</h2>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <span className="badge">موجودی: {profile ? profile.balance.toLocaleString('fa-IR') + ' ت' : '—'}</span>
           <Link className="btn btn-ghost btn-sm" to="/wallet">کیف پول</Link>

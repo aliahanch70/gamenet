@@ -82,7 +82,7 @@ export default function Auth(){
       <div className="card" style={{padding:20}}>
         <h2 style={{fontWeight:900,marginBottom:4,fontSize:22}}>{mode==='login' ? 'ورود' : 'ثبت‌نام'}</h2>
         <p style={{color:'var(--muted)',fontSize:13,marginBottom:16,lineHeight:1.7}}>
-          شرط‌بندی فقط برای کاربران واردشده فعال است.
+          پیش‌بینی فقط برای کاربران واردشده فعال است.
           {mode==='login' ? <button onClick={()=>setMode('signup')} style={{background:'none',border:0,color:'var(--accent)',cursor:'pointer',fontWeight:700}}> ثبت‌نام کنید</button>
           : <button onClick={()=>setMode('login')} style={{background:'none',border:0,color:'var(--accent)',cursor:'pointer',fontWeight:700}}> وارد شوید</button>}
         </p>

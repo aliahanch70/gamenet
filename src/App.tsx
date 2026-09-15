@@ -13,6 +13,7 @@ import AdminHouse from './pages/AdminHouse'
 import AdminSettings from './pages/AdminSettings'
 import AdminDesign from './pages/AdminDesign'
 import AdminLayout from './components/AdminLayout'
+import ProfilePage from './pages/Profile'
 
 function applyFont(font: string){
   const MAP: Record<string,string> = {
@@ -65,6 +66,7 @@ export default function App(){
           <Route path="/auth" element={<Auth/>}/>
           <Route path="/betting" element={<Guard><Betting/></Guard>}/>
           <Route path="/wallet" element={<Guard><Wallet/></Guard>}/>
+          <Route path="/profile" element={<Guard><ProfilePage/></Guard>}/>
           <Route path="/admin" element={<Guard admin><AdminLayout/></Guard>}>
             <Route index element={<Admin/>}/>
             <Route path="withdrawals" element={<AdminWithdrawals/>}/>

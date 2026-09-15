@@ -167,6 +167,7 @@ export default function Admin(){
   const [matchTab,setMatchTab]=useState<'upcoming'|'history'>('upcoming')
   const [tab,setTab]=useState<'dash'|'matches'|'users'|'charge'>('dash')
   const [showAdvanced,setShowAdvanced]=useState(false)
+  const [showCreate,setShowCreate]=useState(false)
 
   const calcMarginPct = (aStr:string,bStr:string,dStr:string)=>{
     const a=parseFloat(aStr), b=parseFloat(bStr), d=dStr?parseFloat(dStr):NaN
@@ -305,6 +306,7 @@ export default function Admin(){
     if(error) setMsg(error.message)
     else {
       setMsg('✅ مسابقه ساخته شد ('+(form.odds_mode==='auto'?'سیستمی':'دستی')+')')
+      setShowCreate(false)
       setForm({
         title:'', game:'FC 25', team_a:'', team_b:'',
         odds_a:'1.90', odds_b:'1.90', odds_draw:'',
@@ -513,23 +515,24 @@ export default function Admin(){
           </datalist>
 
           {/* ---------- CREATE MATCH ---------- */}
-          <div className="card" style={{
-            marginTop:12, padding:20, borderRadius:20,
-            background:'linear-gradient(180deg, var(--surface) 0%, var(--surface2) 100%)',
-            border:'1px solid var(--line)',
-            boxShadow:'0 10px 30px -18px rgba(0,0,0,.35)',
-            display:'grid', gap:16
-          }}>
+
+          <div style={{display:'flex',justifyContent:'flex-end',marginTop:12}}>
+            <button onClick={()=>setShowCreate(true)} className="btn btn-primary" style={{borderRadius:999,padding:'10px 18px',fontWeight:800,background:'linear-gradient(135deg, var(--primary, #6d5efc), #b06bff)',border:'none',boxShadow:'0 10px 24px -12px rgba(109,94,252,.9)'}}>＋ ساخت مسابقهٔ جدید</button>
+          </div>
+          {showCreate && (
+            <div className="modal-overlay" onClick={()=>setShowCreate(false)} style={{position:'fixed',inset:0,zIndex:50,background:'rgba(5,8,18,.72)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+              <div className="modal-card" onClick={e=>e.stopPropagation()} style={{width:'min(640px,95vw)',maxHeight:'90dvh',overflowY:'auto',background:'var(--surface)',border:'1px solid var(--line)',borderRadius:20,padding:20,boxShadow:'0 24px 60px rgba(0,0,0,.65)'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10,marginBottom:12}}>
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <div style={{width:34,height:34,borderRadius:12,display:'grid',placeItems:'center',background:'linear-gradient(135deg, var(--primary, #6d5efc), #b06bff)',color:'#fff',fontSize:16}}>🎯</div>
+                    <h3 style={{fontWeight:900,margin:0,fontSize:15}}>ساخت مسابقهٔ جدید</h3>
+                  </div>
+                  <button onClick={()=>setShowCreate(false)} style={{width:32,height:32,borderRadius:999,border:'1px solid var(--line)',background:'var(--surface2)',cursor:'pointer',fontSize:16}}>×</button>
+                </div>
             {/* header */}
             <div style={{display:'flex', alignItems:'center', gap:10}}>
-              <div style={{
-                width:34, height:34, borderRadius:12, display:'grid', placeItems:'center',
-                background:'linear-gradient(135deg, var(--primary, #6d5efc), #b06bff)',
-                color:'#fff', fontSize:16,
-                boxShadow:'0 6px 16px -8px rgba(109,94,252,.8)'
-              }}>🎯</div>
+              
               <div style={{display:'grid'}}>
-                <h3 style={{fontWeight:900, margin:0, fontSize:15}}>ساخت مسابقهٔ جدید</h3>
                 <p style={{color:'var(--muted)', fontSize:11, margin:0}}>ضرایب و مارجین دوطرفه همگام می‌شوند.</p>
               </div>
               <span style={{
@@ -708,7 +711,9 @@ export default function Admin(){
                 </div>
               )}
             </form>
-          </div>
+              </div>
+            </div>
+          )}
           {/* ---------- /CREATE MATCH ---------- */}
 
           <div className="bet-grid" style={{marginTop:12}}>

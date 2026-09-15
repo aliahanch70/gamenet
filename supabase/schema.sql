@@ -17,6 +17,7 @@ create table public.profiles (
   username    text unique not null,
   display_name text,
   email       text,
+  phone       text,
   is_admin    boolean default false,
   balance     bigint default 0 check (balance >= 0),
   created_at  timestamptz default now()
@@ -714,6 +715,10 @@ grant execute on function public.get_leaderboard() to anon, authenticated;
 alter table public.site_settings add column if not exists design text default 'minimal';
 do $$ begin
   alter publication supabase_realtime add table public.site_settings;
+do $$ begin
+  alter publication supabase_realtime add table public.withdrawals;
+exception when duplicate_object then null;
+end $$;
 exception when duplicate_object then null;
 end $$;
 -- ── admin reset password (D) — ponytail: security definer, checks is_admin(), updates auth.users via pgcrypto ──

@@ -9,8 +9,10 @@ export default function Navbar() {
   const loc = useLocation()
   const nav = useNavigate()
   const [open, setOpen] = useState(false)
+  const [confirmLogout, setConfirmLogout] = useState(false)
 
   const close = () => setOpen(false)
+  const askLogout = () => { close(); setConfirmLogout(true) }
 
   const isActive = (p: string) =>
     loc.pathname === p || loc.pathname.startsWith(p + '/')
@@ -27,6 +29,7 @@ export default function Navbar() {
   }, [loc.pathname])
 
   const logout = async () => {
+    setConfirmLogout(false)
     await signOut()
     close()
     nav('/')
@@ -44,7 +47,7 @@ export default function Navbar() {
             </span>
 
             <span className="brand-name">
-              GAME<span>VERSE</span>
+              PLAY<span>STREET</span>
             </span>
           </Link>
 
@@ -63,6 +66,16 @@ export default function Navbar() {
               </Link>
 
               {userId && (
+                <>
+                <Link
+                  className={`modern-nav-link ${
+                    isActive('/profile') ? 'active' : ''
+                  }`}
+                   to="/profile"
+                >
+                  <span className="nav-icon">👤</span>
+                  پروفایل
+                </Link>
                 <Link
                   className={`modern-nav-link ${
                     isActive('/wallet') ? 'active' : ''
@@ -72,6 +85,7 @@ export default function Navbar() {
                   <span className="nav-icon">◈</span>
                   کیف پول
                 </Link>
+                </>
               )}
 
               {isAdmin && (
@@ -139,7 +153,7 @@ export default function Navbar() {
 
                   <button
                     className="logout-btn"
-                    onClick={logout}
+                    onClick={askLogout}
                     title="خروج"
                   >
                     ↪
@@ -150,7 +164,21 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Mobile hamburger */}
+          {/* Mobile: balance + logout in header */}
+          {userId && (
+            <div className="mobile-top-actions">
+              {profile && (
+                <Link to="/wallet" className="mobile-top-balance" style={{margin:0}}>
+                  <span className="balance-dot" />
+                  <span>{profile.balance.toLocaleString('fa-IR')}</span>
+                  <small>ت</small>
+                </Link>
+              )}
+              <button onClick={askLogout} aria-label="خروج" className="mobile-top-logout"><span>خروج</span><span style={{fontSize:14,lineHeight:1}}>↪</span></button>
+            </div>
+          )}
+
+          {/* Mobile hamburger (hidden when bottom nav is active — kept for fallback) */}
           <button
             className={`modern-hamburger ${open ? 'open' : ''}`}
             aria-label="منو"
@@ -237,6 +265,19 @@ export default function Navbar() {
             </Link>
 
             {userId && (
+              <>
+              <Link
+                className={`mobile-nav-link ${
+                  isActive('/profile') ? 'active' : ''
+                }`}
+                to="/profile"
+                onClick={close}
+              >
+                <span className="mobile-link-icon">👤</span>
+                <span>پروفایل</span>
+                <b>←</b>
+              </Link>
+
               <Link
                 className={`mobile-nav-link ${
                   isActive('/wallet') ? 'active' : ''
@@ -248,6 +289,7 @@ export default function Navbar() {
                 <span>کیف پول</span>
                 <b>←</b>
               </Link>
+              </>
             )}
 
             {isAdmin && (
@@ -299,7 +341,7 @@ export default function Navbar() {
             ) : (
               <button
                 className="mobile-logout"
-                onClick={logout}
+                onClick={askLogout}
               >
                 خروج از حساب
                 <span>↪</span>
@@ -314,6 +356,57 @@ export default function Navbar() {
 
         </div>
       </div>
+
+      {/* Mobile bottom nav — replaces hamburger/drawer on ≤850px */}
+      <nav className="mobile-bottom-nav" aria-label="منوی اصلی">
+        <Link to="/" className={`bb-link ${loc.pathname==='/' ? 'active' : ''}`}>
+          <span className="bb-icon">◐</span>
+          <span className="bb-label">خانه</span>
+        </Link>
+        <Link to="/betting" className={`bb-link ${isActive('/betting') ? 'active' : ''}`}>
+          <span className="bb-icon">🎲</span>
+          <span className="bb-label">پیش‌بینی</span>
+        </Link>
+        {userId ? (
+          <>
+            <Link to="/wallet" className={`bb-link ${isActive('/wallet') ? 'active' : ''}`}>
+              <span className="bb-icon">◈</span>
+              <span className="bb-label">کیف</span>
+            </Link>
+            <Link to="/profile" className={`bb-link ${isActive('/profile') ? 'active' : ''}`}>
+              <span className="bb-icon">👤</span>
+              <span className="bb-label">پروفایل</span>
+            </Link>
+          </>
+        ) : (
+          <Link to="/auth" className={`bb-link ${isActive('/auth') ? 'active' : ''}`}>
+            <span className="bb-icon">↪</span>
+            <span className="bb-label">ورود</span>
+          </Link>
+        )}
+        {isAdmin && (
+          <Link to="/admin" className={`bb-link ${loc.pathname.startsWith('/admin') ? 'active admin' : ''}`}>
+            <span className="bb-icon">✦</span>
+            <span className="bb-label">ادمین</span>
+            {isActive('/admin/withdrawals') && <span className="bb-dot" />}
+          </Link>
+        )}
+      </nav>
+
+      {/* Logout confirm */}
+      {confirmLogout && (
+        <div className="modal-overlay" onClick={()=>setConfirmLogout(false)} style={{position:'fixed',inset:0,zIndex:210,background:'rgba(5,8,18,.72)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+          <div className="modal-card" onClick={e=>e.stopPropagation()} style={{width:'min(380px,90vw)',maxHeight:'none',overflow:'visible',background:'var(--surface)',border:'1px solid var(--line)',borderRadius:20,padding:22,boxShadow:'0 24px 60px rgba(0,0,0,.65)',textAlign:'center'}}>
+            <div style={{width:52,height:52,borderRadius:14,display:'grid',placeItems:'center',margin:'0 auto 14px',background:'rgba(244,63,94,.12)',border:'1px solid rgba(244,63,94,.25)',fontSize:22}}>↪</div>
+            <h3 style={{fontWeight:900,fontSize:16,margin:0}}>خروج از حساب</h3>
+            <p style={{color:'var(--muted)',fontSize:13,marginTop:6,marginBottom:18,lineHeight:1.7}}>آیا مطمئنید که می‌خواهید از حساب خارج شوید؟</p>
+            <div style={{display:'flex',gap:10,justifyContent:'center'}}>
+              <button onClick={()=>setConfirmLogout(false)} className="btn btn-ghost btn-sm" style={{borderRadius:999,padding:'10px 20px',fontWeight:800}}>لغو</button>
+              <button onClick={logout} className="btn btn-primary btn-sm" style={{borderRadius:999,padding:'10px 20px',fontWeight:800,background:'#f43f5e',borderColor:'#f43f5e'}}>بله، خارج شوم</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
