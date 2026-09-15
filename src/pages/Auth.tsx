@@ -13,7 +13,7 @@ export default function Auth(){
   const timer = useRef<number|null>(null)
   const nav = useNavigate()
 
-  // live username check (signup only)
+  // live username check (signup only) — ponytail: 450ms debounce = rate-limit; is_username_available is cheap stable RPC, real guard is DB unique constraint
   useEffect(()=>{
     if(mode!=='signup' || !username.trim()){ setUStatus('idle'); return }
     setUStatus('checking')
@@ -32,9 +32,16 @@ export default function Auth(){
     return ()=>{ if(timer.current) window.clearTimeout(timer.current) }
   },[username, mode])
 
-  // friendly mapping for Postgres / PostgREST errors
+  // friendly mapping for Postgres / PostgREST / RPC errors (all RPC messages are Persian except a few English DB errors)
   const friendly = (raw:string)=>{
     const m = raw.toLowerCase()
+    if(m.includes('موجودی کافی نیست') || m.includes('insufficient')) return 'موجودی کافی نیست — لطفاً کیف پول را شارژ کنید.'
+    if(m.includes('حداقل مبلغ')) return raw // keep original Persian (already friendly)
+    if(m.includes('شماره کارت') || m.includes('char_length')) return 'شماره کارت حداقل ۶ کاراکتر باشد.'
+    if(m.includes('زمان شرط')) return 'زمان شرط‌بندی تمام شده است.'
+    if(m.includes('مسابقه قابل شرط') || m.includes('match not open')) return 'این مسابقه بسته است — شرط جدید پذیرفته نمی‌شود.'
+    if(m.includes('مسابقه یافت نشد')) return 'مسابقه یافت نشد.'
+    if(m.includes('دسترسی غیرمجاز') || m.includes('not authenticated') || m.includes('unauthorized')) return 'دسترسی غیرمجاز — وارد حساب شوید.'
     if(m.includes('duplicate key') || m.includes('unique') || m.includes('username')) return 'این نام کاربری قبلاً گرفته شده — یکی دیگر انتخاب کنید.'
     if(m.includes('database error saving new user')) return 'این نام کاربری قبلاً گرفته شده — یکی دیگر انتخاب کنید.'
     if(m.includes('already registered') || m.includes('already exists')) return 'این ایمیل قبلاً ثبت شده — وارد شوید.'

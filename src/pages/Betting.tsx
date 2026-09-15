@@ -64,6 +64,7 @@ function BetModal({
   const clamp = (n: number) => Math.min(STAKE_MAX, Math.max(STAKE_MIN, Math.round(n / STEP) * STEP))
 
   const submit = async () => {
+    if (busy) return
     setErr(null); setOk(null)
     if (!amount || isNaN(amount)) { setErr('مبلغ را وارد کنید'); return }
     if (amount < STAKE_MIN) { setErr(`حداقل مبلغ ${STAKE_MIN.toLocaleString('fa-IR')} تومان است`); return }
@@ -176,7 +177,7 @@ function BetModal({
 
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
           <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose} disabled={busy}>انصراف</button>
-          <button className="btn btn-primary" style={{ flex: 1.6, flexDirection:'column', lineHeight:1.2, padding:'10px 14px' }} onClick={submit} disabled={busy}>
+          <button className="btn btn-primary" style={{ flex: 1.6, flexDirection:'column', lineHeight:1.2, padding:'10px 14px', opacity: busy ? .6 : 1 }} onClick={submit} disabled={busy}>
             <span style={{fontWeight:900, fontSize:14}}>{busy ? 'در حال ثبت…' : `ثبت شرط ${amount.toLocaleString('fa-IR')} ت`}</span>
             {!busy && <span style={{fontSize:11, opacity:.85, fontWeight:600}}>انتخاب: {pick==='team_a'?match.team_a:pick==='team_b'?match.team_b:'مساوی'} · دریافتی {payout.toLocaleString('fa-IR')} ت</span>}
           </button>
@@ -233,6 +234,14 @@ function MatchCard({
               : 'rgba(255,255,255,.08)',
         }}
       />
+      {disabled && (
+        <div style={{ position:'absolute', inset:0, background:'rgba(2,6,20,.38)', backdropFilter:'blur(1px)', borderRadius:18, pointerEvents:'none' }} />
+      )}
+      {disabled && (
+        <span style={{ position:'absolute', top:10, left:10, zIndex:1, fontSize:10, fontWeight:900, padding:'4px 9px', borderRadius:999, background:'rgba(15,23,42,.85)', border:'1px solid rgba(255,255,255,.14)', color:'#e2e8f0' }}>
+          {m.status==='live' ? '● زنده — بسته شد' : m.status==='finished' ? 'پایان — بسته شد' : 'بسته شد'}
+        </span>
+      )}
 
       {/* Header */}
       <div
@@ -657,7 +666,11 @@ export default function Betting() {
     if (!confirm('لغو این شرط؟ مبلغ به کیف پول برمی‌گردد.')) return
     setCancelId(b.id)
     const { error } = await supabase.rpc('cancel_bet', { p_bet_id: b.id })
-    if (error) alert(error.message)
+    if (error){
+      const mm = (error.message||'').toLowerCase()
+      if(mm.includes('موجودی') || mm.includes('insufficient')) alert('موجودی کافی نیست')
+      else alert(error.message)
+    }
     else { setBets(s=> s.filter(x=> x.id!==b.id)); try{ updateBalance(Number(b.amount)) }catch{}; await refresh() }
     setCancelId(null)
   }
@@ -690,8 +703,9 @@ export default function Betting() {
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
             <div style={{background:'rgba(255,255,255,.05)',border:'1px solid var(--line)',borderRadius:10,padding:'8px',textAlign:'center'}}><div style={{fontSize:10,color:'var(--muted)'}}>مبلغ</div><div style={{fontWeight:900,fontSize:13}}>{receipt.amount.toLocaleString('fa-IR')} ت</div></div>
             <div style={{background:'rgba(255,255,255,.05)',border:'1px solid var(--line)',borderRadius:10,padding:'8px',textAlign:'center'}}><div style={{fontSize:10,color:'var(--muted)'}}>ضریب</div><div style={{fontWeight:900,fontSize:13,color:'var(--accent)'}}>{receipt.odds.toFixed(2)}×</div></div>
-            <div style={{background:'rgba(0,229,160,.10)',border:'1px solid rgba(0,229,160,.25)',borderRadius:10,padding:'8px',textAlign:'center'}}><div style={{fontSize:10,color:'var(--muted)'}}>دریافتی</div><div style={{fontWeight:900,fontSize:13}}>{receipt.payout.toLocaleString('fa-IR')} ت</div></div>
+            <div style={{background:'rgba(0,229,160,.10)',border:'1px solid rgba(0,229,160,.25)',borderRadius:10,padding:'8px',textAlign:'center'}}><div style={{fontSize:10,color:'var(--muted)'}}>دریافتی</div><div style={{fontWeight:900,fontSize:13}}>{receipt.payout.toLocaleString('fa-IR')} ت</div><div style={{fontSize:10,color:'var(--muted)',marginTop:2}}>⌊{receipt.amount.toLocaleString('fa-IR')} × {receipt.odds.toFixed(2)}⌋</div></div>
           </div>
+          <div style={{fontSize:11,color:'var(--muted)',textAlign:'center'}}>سود خالص: {(receipt.payout - receipt.amount).toLocaleString('fa-IR')} ت — در تاریخچه نیز قابل مشاهده است.</div>
           <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
             <button className="btn btn-primary btn-sm" onClick={()=>{ const txt=`رسید GAMEVERSE\n${receipt.title} — ${receipt.game}\nانتخاب: ${receipt.pick}\nمبلغ: ${receipt.amount.toLocaleString('fa-IR')} ت · ضریب ${receipt.odds.toFixed(2)}× · دریافتی ${receipt.payout.toLocaleString('fa-IR')} ت\nکد: ${receipt.id} — ${new Date(receipt.at).toLocaleString('fa-IR')}`; navigator.clipboard.writeText(txt) }}>📋 کپی رسید</button>
             <button className="btn btn-ghost btn-sm" onClick={async()=>{ const txt=`رسید GAMEVERSE\n${receipt.title} — ${receipt.game}\nانتخاب: ${receipt.pick}\nمبلغ: ${receipt.amount.toLocaleString('fa-IR')} ت · ضریب ${receipt.odds.toFixed(2)}×\nکد: ${receipt.id}`; if((navigator as any).share) try{ await (navigator as any).share({title:'رسید شرط GAMEVERSE', text: txt}) }catch{} else navigator.clipboard.writeText(txt) }}>↗️ اشتراک</button>

@@ -120,7 +120,7 @@ alter table public.site_settings enable row level security;
 -- profiles
 create policy "profiles read own" on public.profiles for select using (id = auth.uid());
 create policy "profiles update own" on public.profiles for update using (id = auth.uid()) with check (id = auth.uid() and balance = (select p.balance from public.profiles p where p.id = auth.uid()) and is_admin = (select p.is_admin from public.profiles p where p.id = auth.uid()));
-create or replace function public.prevent_profile_hack() returns trigger language plpgsql security definer set search_path = public as $$ begin if new.id is distinct from old.id or new.is_admin is distinct from old.is_admin then if not public.is_admin() then raise exception 'تغییر موجودی یا دسترسی مجاز نیست'; end if; end if; return new; end; $$; -- ponytail: balance via RLS WITH CHECK only; trigger keeps is_admin/id — per-row RPC balance updates must not be blocked
+create or replace function public.prevent_profile_hack() returns trigger language plpgsql security definer set search_path = public, pg_temp as $$ begin if new.id is distinct from old.id or new.is_admin is distinct from old.is_admin then if not public.is_admin() then raise exception 'تغییر موجودی یا دسترسی مجاز نیست'; end if; end if; return new; end; $$; -- ponytail: balance via RLS WITH CHECK only; trigger keeps is_admin/id — per-row RPC balance updates must not be blocked
 drop trigger if exists trg_prevent_profile_hack on public.profiles; create trigger trg_prevent_profile_hack before update on public.profiles for each row execute function public.prevent_profile_hack();
 create policy "profiles admin read all" on public.profiles for select using (public.is_admin());
 create policy "profiles admin update all" on public.profiles for update using (public.is_admin());
@@ -132,6 +132,7 @@ create policy "matches admin update" on public.matches for update using (public.
 create policy "matches admin delete" on public.matches for delete using (public.is_admin());
 
 -- bets
+-- bets: NO insert/update/delete policy intentionally — writes only via security definer RPC place_bet / cancel_bet / settle_match
 create policy "bets read own" on public.bets for select using (user_id = auth.uid());
 create policy "bets admin read all" on public.bets for select using (public.is_admin());
 
@@ -142,6 +143,7 @@ create policy "tx admin read all" on public.transactions for select using (publi
 -- withdrawals
 create policy "withdrawals read own" on public.withdrawals for select using (user_id = auth.uid());
 create policy "withdrawals admin read all" on public.withdrawals for select using (public.is_admin());
+-- REMOVED: withdrawals insert own — withdrawals must go via request_withdrawal() RPC only
 create policy "withdrawals admin update" on public.withdrawals for update using (public.is_admin());
 
 -- notifications
@@ -162,6 +164,7 @@ create or replace function public.is_admin()
 returns boolean
 language sql
 security definer
+set search_path = public, pg_temp
 stable
 as $$
   select coalesce((select is_admin from public.profiles where id = auth.uid()), false);
@@ -172,6 +175,7 @@ create or replace function public.my_balance()
 returns bigint
 language sql
 security definer
+set search_path = public, pg_temp
 stable
 as $$
   select coalesce((select balance from public.profiles where id = auth.uid()), 0);
@@ -182,6 +186,7 @@ create or replace function public.is_username_available(p_username text)
 returns boolean
 language sql
 security definer
+set search_path = public, pg_temp
 stable
 as $$
   select not exists(select 1 from public.profiles where username = lower(p_username));
@@ -193,6 +198,7 @@ create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 declare
   v_username text;
@@ -237,6 +243,7 @@ create or replace function public.set_init_odds()
 returns trigger
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 begin
   new.init_odds_a    := coalesce(new.init_odds_a, new.odds_a);
@@ -256,6 +263,7 @@ create or replace function public.recalc_odds(p_match_id uuid)
 returns void
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 declare
   v_margin    numeric;
@@ -268,8 +276,12 @@ declare
   v_new_a     numeric;
   v_new_b     numeric;
   v_new_d     numeric;
+  v_mode      public.odds_mode;
   V           constant numeric := 2000000;
 begin
+  select odds_mode into v_mode from public.matches where id = p_match_id;
+  if v_mode != 'auto' then return; end if;
+
   select margin, init_odds_a, init_odds_b, init_odds_draw
   into v_margin, v_init_a, v_init_b, v_init_d
   from public.matches where id = p_match_id;
@@ -330,6 +342,7 @@ create or replace function public.place_bet(
 returns public.bets
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 declare
   v_user    uuid := auth.uid();
@@ -338,6 +351,7 @@ declare
   v_payout  numeric;
   v_bet     public.bets;
   v_total   numeric;
+  v_bal     bigint;
   Vb        constant numeric := 2000000;
 begin
   -- Lock
@@ -360,8 +374,9 @@ begin
     raise exception 'حداقل مبلغ شرط ۱۰,۰۰۰ تومان است';
   end if;
 
-  -- Check balance
-  if (select balance from public.profiles where id = v_user) < p_amount then
+  -- Check balance (FOR UPDATE prevents race)
+  select balance into v_bal from public.profiles where id = v_user for update;
+  if coalesce(v_bal, 0) < p_amount then
     raise exception 'موجودی کافی نیست';
   end if;
 
@@ -420,12 +435,25 @@ create or replace function public.settle_match(
 returns void
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 declare
   v_bet record;
+  v_st  public.match_status;
 begin
   if not public.is_admin() then
     raise exception 'دسترسی غیرمجاز';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext(p_match_id::text));
+
+  -- Lock match row to prevent double settle
+  select status into v_st from public.matches where id = p_match_id for update;
+  if not found then
+    raise exception 'مسابقه یافت نشد یا قبلاً تسویه شده';
+  end if;
+  if v_st = 'finished' then
+    raise exception 'مسابقه یافت نشد یا قبلاً تسویه شده';
   end if;
 
   -- Update match
@@ -462,14 +490,16 @@ create or replace function public.cancel_bet(p_bet_id uuid)
 returns void
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 declare
   v_bet record;
 begin
+  perform pg_advisory_xact_lock(hashtext(p_bet_id::text));
   select b.*, m.status as match_status into v_bet
   from public.bets b
   join public.matches m on m.id = b.match_id
-  where b.id = p_bet_id;
+  where b.id = p_bet_id for update;
 
   if not found then
     raise exception 'شرط یافت نشد';
@@ -488,7 +518,8 @@ begin
     raise exception 'مسابقه شروع شده و قابل لغو نیست';
   end if;
 
-  update public.bets set status = 'refunded' where id = p_bet_id;
+  update public.bets set status = 'refunded' where id = p_bet_id and status = 'pending';
+  if not found then raise exception 'فقط شرط‌های در انتظار قابل لغو هستند'; end if;
   update public.profiles set balance = balance + v_bet.amount where id = v_bet.user_id;
   insert into public.transactions (user_id, amount, type, note)
   values (v_bet.user_id, v_bet.amount, 'refund', 'لغو شرط');
@@ -507,28 +538,37 @@ create or replace function public.delete_match(p_match_id uuid)
 returns void
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
+declare
+  v_ids uuid[];
 begin
   if not public.is_admin() then
     raise exception 'دسترسی غیرمجاز';
   end if;
 
-  -- Refund all pending bets first
-  update public.bets set status = 'refunded'
-  where match_id = p_match_id and status = 'pending';
+  perform pg_advisory_xact_lock(hashtext(p_match_id::text));
 
-  -- Refund balances
-  insert into public.transactions (user_id, amount, type, note)
-  select user_id, amount, 'refund', 'حذف مسابقه'
-  from public.bets
-  where match_id = p_match_id and status = 'refunded';
+  if exists(select 1 from public.bets where match_id = p_match_id and status in ('won','lost')) then
+    raise exception 'cannot delete finished match';
+  end if;
+  if exists(select 1 from public.bets where match_id = p_match_id and status = 'refunded') then
+    raise exception 'already refunded — cannot delete twice';
+  end if;
 
-  update public.profiles p
-  set balance = balance + b.amount
-  from public.bets b
-  where b.match_id = p_match_id and b.status = 'refunded' and p.id = b.user_id;
+  -- Collect pending bets atomically, mark refunded, and refund exactly those
+  select array_agg(id) into v_ids from public.bets where match_id = p_match_id and status = 'pending';
+  if v_ids is not null then
+    update public.bets set status = 'refunded' where id = any(v_ids);
 
-  delete from public.bets where match_id = p_match_id;
+    insert into public.transactions (user_id, amount, type, note)
+    select user_id, amount, 'refund', 'حذف مسابقه' from public.bets where id = any(v_ids);
+
+    update public.profiles p set balance = balance + b.amount
+    from public.bets b where b.id = any(v_ids) and p.id = b.user_id;
+
+    delete from public.bets where id = any(v_ids);
+  end if;
   delete from public.matches where id = p_match_id;
 end;
 $$;
@@ -542,6 +582,7 @@ create or replace function public.request_withdrawal(
 returns public.withdrawals
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 declare
   v_user    uuid := auth.uid();
@@ -555,8 +596,9 @@ begin
     raise exception 'شماره کارت حداقل ۶ کاراکتر باشد';
   end if;
 
-  select balance into v_balance from public.profiles where id = v_user;
-  if v_balance < p_amount then
+  perform pg_advisory_xact_lock(hashtext(v_user::text));
+  select balance into v_balance from public.profiles where id = v_user for update;
+  if coalesce(v_balance, 0) < p_amount then
     raise exception 'موجودی کافی نیست';
   end if;
 
@@ -583,6 +625,7 @@ create or replace function public.approve_withdrawal(p_withdrawal_id uuid)
 returns void
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 declare
   v_wd record;
@@ -591,12 +634,14 @@ begin
     raise exception 'دسترسی غیرمجاز';
   end if;
 
-  select * into v_wd from public.withdrawals where id = p_withdrawal_id and status = 'pending';
-  if not found then
+  perform pg_advisory_xact_lock(hashtext(p_withdrawal_id::text));
+  select * into v_wd from public.withdrawals where id = p_withdrawal_id for update;
+  if not found or v_wd.status != 'pending' then
     raise exception 'درخواست یافت نشد یا قبلاً پردازش شده';
   end if;
 
-  update public.withdrawals set status = 'approved', decided_at = now(), decided_by = auth.uid() where id = p_withdrawal_id;
+  update public.withdrawals set status = 'approved', decided_at = now(), decided_by = auth.uid() where id = p_withdrawal_id and status = 'pending';
+  if not found then raise exception 'درخواست یافت نشد یا قبلاً پردازش شده'; end if;
 
   insert into public.notifications (user_id, title, body)
   values (v_wd.user_id, '✅ برداشت تأیید شد', 'درخواست برداشت شما به مبلغ ' || to_char(v_wd.amount, 'FM999,999,999') || ' تومان تأیید و پرداخت شد.');
@@ -608,6 +653,7 @@ create or replace function public.reject_withdrawal(p_withdrawal_id uuid, p_reas
 returns void
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 declare
   v_wd record;
@@ -616,12 +662,14 @@ begin
     raise exception 'دسترسی غیرمجاز';
   end if;
 
-  select * into v_wd from public.withdrawals where id = p_withdrawal_id and status = 'pending';
-  if not found then
+  perform pg_advisory_xact_lock(hashtext(p_withdrawal_id::text));
+  select * into v_wd from public.withdrawals where id = p_withdrawal_id for update;
+  if not found or v_wd.status != 'pending' then
     raise exception 'درخواست یافت نشد یا قبلاً پردازش شده';
   end if;
 
-  update public.withdrawals set status = 'rejected', note = p_reason, decided_at = now(), decided_by = auth.uid() where id = p_withdrawal_id;
+  update public.withdrawals set status = 'rejected', note = p_reason, decided_at = now(), decided_by = auth.uid() where id = p_withdrawal_id and status = 'pending';
+  if not found then raise exception 'درخواست یافت نشد یا قبلاً پردازش شده'; end if;
 
   -- Refund
   update public.profiles set balance = balance + v_wd.amount where id = v_wd.user_id;
@@ -642,6 +690,7 @@ create or replace function public.charge_wallet(
 returns void
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 begin
   if not public.is_admin() then
@@ -679,6 +728,10 @@ grant select on public.bets to anon, authenticated;
 grant select on public.transactions to anon, authenticated;
 
 grant select on public.withdrawals to anon, authenticated;
+revoke insert, update, delete on public.withdrawals from anon, authenticated;
+revoke insert, update, delete on public.bets from anon, authenticated;
+revoke insert, update, delete on public.transactions from anon, authenticated;
+revoke insert, update, delete on public.notifications from anon, authenticated;
 
 grant select on public.notifications to anon, authenticated;
 
@@ -694,7 +747,9 @@ grant execute on function public.place_bet(uuid, public.bet_pick, bigint) to aut
 grant execute on function public.settle_match(uuid, public.bet_pick) to authenticated;
 grant execute on function public.cancel_bet(uuid) to authenticated;
 grant execute on function public.delete_match(uuid) to authenticated;
-grant execute on function public.recalc_odds(uuid) to authenticated;
+revoke execute on function public.recalc_odds(uuid) from anon, authenticated, public;
+-- ⚠️ Run supabase/migration_audit_fixes.sql + migration_harden_betting.sql in SQL Editor to apply this revoke to existing DB
+-- recalc_odds is internal only — called via place_bet/cancel_bet (SECURITY DEFINER); no direct RPC grant
 grant execute on function public.request_withdrawal(bigint, text) to authenticated;
 grant execute on function public.approve_withdrawal(uuid) to authenticated;
 grant execute on function public.reject_withdrawal(uuid, text) to authenticated;
@@ -708,6 +763,7 @@ insert into public.site_settings (id) values (1) on conflict (id) do nothing;
 create or replace function public.get_leaderboard()
 returns table(username text, balance bigint)
 language sql security definer stable
+set search_path = public, pg_temp
 as $$ select username, balance from public.profiles order by balance desc limit 3 $$;
 grant execute on function public.get_leaderboard() to anon, authenticated;
 
@@ -744,7 +800,7 @@ create or replace function public.get_withdrawal_counts()
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare cP int; cA int; cR int;
 begin

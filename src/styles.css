@@ -1253,7 +1253,7 @@ html[data-design="stadium"] .admin-side{background:#182018}
     background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,.7)
   }
   /* avoid content hidden behind bar */
-  body{padding-bottom:62px}
+  body{padding-bottom:calc(62px + env(safe-area-inset-bottom))}
   /* drawer no longer needed — hide fully on this layout */
   .modern-drawer{display:none !important}
 }

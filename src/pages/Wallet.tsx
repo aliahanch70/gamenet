@@ -51,7 +51,13 @@ export default function Wallet(){
     if(!wdAccount.trim() || wdAccount.trim().length<6){ setMsg('شماره کارت/حساب را کامل وارد کنید'); return }
     setWdBusy(true)
     const { error } = await supabase.rpc('request_withdrawal',{ p_amount: amt, p_account: wdAccount.trim() })
-    if(error) setMsg(error.message)
+    if(error){
+      const m = (error.message||'').toLowerCase()
+      if(m.includes('موجودی کافی نیست') || m.includes('insufficient')) setMsg('موجودی کافی نیست — لطفاً مقدار کمتری وارد کنید')
+      else if(m.includes('حداقل')) setMsg(error.message) // already Persian + friendly
+      else if(m.includes('شماره کارت') || m.includes('۶ کاراکتر')) setMsg('شماره کارت حداقل ۶ کاراکتر باشد')
+      else setMsg(error.message)
+    }
     else { setMsg('✅ درخواست ثبت شد — پس از تایید ادمین واریز می‌شود'); setWdAmount(''); setWdAccount(''); try{ updateBalance(-amt) }catch{}; await loadWds(0); await loadTxs(0); await refresh() }
     setWdBusy(false)
   }
@@ -118,7 +124,7 @@ export default function Wallet(){
           </div>
         )}
       </div>
-      {txLoading ? <div style={{marginTop:10,display:'grid',gap:8}}>{[0,1,2,3].map(i=> <div key={i} className="skeleton skeleton-row" />)}</div> : (() => { const filtered = txFilter==='all'? txs : txs.filter(x=> x.type===txFilter); return filtered.length===0 ? <div style={{color:'var(--muted)',fontSize:13,marginTop:10}}>{txs.length===0?'تراکنشی نیست.':'در این فیلتر تراکنشی نیست.'}</div> :
+      {txLoading ? <div style={{marginTop:10,display:'grid',gap:8}}>{[0,1,2,3].map(i=> <div key={i} className="skeleton skeleton-row" />)}</div> : (() => { const filtered = txFilter==='all'? txs : txs.filter(x=> x.type===txFilter); return filtered.length===0 ? <div className="card" style={{marginTop:10,padding:'22px 14px',textAlign:'center',color:'var(--muted)',fontSize:13}}><div style={{fontSize:22}}>📭</div><div style={{marginTop:6,fontWeight:700}}>{txs.length===0?'تراکنشی نیست':'در این فیلتر تراکنشی نیست.'}</div><div style={{fontSize:11,marginTop:4}}>{txs.length===0?'شارژ یا شرط ثبت کنید تا اینجا نمایش داده شود.':'فیلتر دیگری را امتحان کنید.'}</div></div> :
         <div className="card" style={{overflow:'hidden'}}>
           <div className="table-wrap" style={{margin:0,padding:0}}>
           <table className="table">
