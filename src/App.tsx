@@ -15,6 +15,7 @@ const AdminWithdrawals = lazy(() => import('./pages/AdminWithdrawals'))
 const AdminHouse = lazy(() => import('./pages/AdminHouse'))
 const AdminSettings = lazy(() => import('./pages/AdminSettings'))
 const AdminDesign = lazy(() => import('./pages/AdminDesign'))
+const AdminCafe = lazy(() => import('./pages/AdminCafe'))
 const AdminLayout = lazy(() => import('./components/AdminLayout'))
 const Reels = lazy(() => import('./pages/Reels'))
 
@@ -90,6 +91,7 @@ export default function App(){
             <Route path="house" element={<Suspense fallback={<AdminFallback/>}><AdminHouse/></Suspense>}/>
             <Route path="settings" element={<Suspense fallback={<AdminFallback/>}><AdminSettings/></Suspense>}/>
             <Route path="design" element={<Suspense fallback={<AdminFallback/>}><AdminDesign/></Suspense>}/>
+            <Route path="cafe" element={<Suspense fallback={<AdminFallback/>}><AdminCafe/></Suspense>}/>
           </Route>
           <Route path="*" element={<Navigate to="/" replace/>}/>
         </Routes>

@@ -7,6 +7,7 @@ const NAV: { to:string; label:string; icon:string; end?:boolean }[] = [
   { to:'/admin', label:'داشبورد', icon:'📊', end:true },
   { to:'/admin/withdrawals', label:'برداشت‌ها', icon:'💸' },
   { to:'/admin/house', label:'سود خانه', icon:'🏦' },
+  { to:'/admin/cafe', label:'حساب‌ها و بوفه', icon:'🍔' },
   { to:'/admin/settings', label:'تنظیمات سایت', icon:'⚙️' },
   { to:'/admin/design', label:'طراحی سایت', icon:'🎨' },
 ]
