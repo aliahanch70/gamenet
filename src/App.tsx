@@ -16,6 +16,7 @@ const AdminHouse = lazy(() => import('./pages/AdminHouse'))
 const AdminSettings = lazy(() => import('./pages/AdminSettings'))
 const AdminDesign = lazy(() => import('./pages/AdminDesign'))
 const AdminLayout = lazy(() => import('./components/AdminLayout'))
+const Reels = lazy(() => import('./pages/Reels'))
 
 function AdminFallback(){
   return (
@@ -82,6 +83,7 @@ export default function App(){
           <Route path="/betting" element={<Guard><Betting/></Guard>}/>
           <Route path="/wallet" element={<Guard><Wallet/></Guard>}/>
           <Route path="/profile" element={<Guard><ProfilePage/></Guard>}/>
+          <Route path="/reels" element={<Suspense fallback={<AdminFallback/>}><Reels/></Suspense>}/>
           <Route path="/admin" element={<Guard admin><Suspense fallback={<AdminFallback/>}><AdminLayout/></Suspense></Guard>}>
             <Route index element={<Suspense fallback={<AdminFallback/>}><Admin/></Suspense>}/>
             <Route path="withdrawals" element={<Suspense fallback={<AdminFallback/>}><AdminWithdrawals/></Suspense>}/>

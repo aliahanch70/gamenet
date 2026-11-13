@@ -34,7 +34,7 @@ create table public.matches (
   status         public.match_status default 'upcoming',
   odds_a         numeric(5,2) default 1.50,
   odds_b         numeric(5,2) default 2.50,
-  odds_draw      numeric(5,2) default 3.00,
+  odds_draw      numeric(5,2), -- null = no draw market
   odds_mode      public.odds_mode default 'auto',
   margin         numeric(4,3) default 0.05,
   winner         public.bet_pick,
@@ -109,6 +109,7 @@ create table public.site_settings (
   games      jsonb default '[{"name":"FC 25","icon":"⚽"},{"name":"FC 26","icon":"⚽"},{"name":"Valorant","icon":"🎯"},{"name":"DOTA 2","icon":"⚔️"},{"name":"LoL","icon":"🏰"},{"name":"CoD","icon":"🔫"},{"name":"FIFA","icon":"⚽"}]'::jsonb,
   contact    jsonb default '{"address":"","phone1":"","phone2":"","hours":"","email":""}'::jsonb,
   widgets    jsonb default '[]'::jsonb,
+  brand      jsonb default '{"name":"PLAYSTREET","title":"GAMEVERSE — گیم‌نت حرفه‌ای","description":"GAMEVERSE — گیم‌نت حرفه‌ای با شرط‌بندی زنده و کیف پول تومانی","keywords":"گیم نت, شرط بندی, بازی","og_image":"","favicon":"","logo_url":"","logo_text":"PLAYSTREET"}'::jsonb,
   design     text default 'minimal',
   updated_at timestamptz default now(),
   updated_by uuid
@@ -291,43 +292,44 @@ begin
   select coalesce(sum(amount), 0) into v_sum_b from public.bets where match_id = p_match_id and pick = 'team_b' and status = 'pending';
   select coalesce(sum(amount), 0) into v_sum_d from public.bets where match_id = p_match_id and pick = 'draw' and status = 'pending';
 
-  -- Virtual pool proportional to init odds
+  -- Virtual pool proportional to init odds — draw market only if init draw exists (null = no draw)
   if v_init_a is not null and v_init_a > 0 and v_init_b is not null and v_init_b > 0 then
     declare
       v_va numeric := floor(V * (1 - v_margin) / v_init_a);
       v_vb numeric := floor(V * (1 - v_margin) / v_init_b);
-      v_vd numeric := case when v_init_d is not null and v_init_d > 0 then floor(V * (1 - v_margin) / v_init_d) else V / 3 end;
-      v_total numeric := v_sum_a + v_sum_b + v_sum_d + V;
+      v_has_draw boolean := (v_init_d is not null and v_init_d > 0);
+      v_vd numeric := case when v_has_draw then floor(V * (1 - v_margin) / v_init_d) else 0 end;
+      v_total numeric := v_sum_a + v_sum_b + coalesce(case when v_has_draw then v_sum_d else 0 end, 0) + V;
     begin
       v_new_a := (v_total) / (v_sum_a + v_va) * (1 - v_margin);
       v_new_b := (v_total) / (v_sum_b + v_vb) * (1 - v_margin);
-      if v_init_d is not null and v_init_d > 0 then
+      if v_has_draw then
         v_new_d := (v_total) / (v_sum_d + v_vd) * (1 - v_margin);
       else
-        v_new_d := 3.00;
+        v_new_d := null;
       end if;
     end;
   else
-    -- Fallback: equal split
+    -- Fallback: equal split — no draw if none existed
     declare
-      v_total numeric := v_sum_a + v_sum_b + v_sum_d + V;
+      v_total numeric := v_sum_a + v_sum_b + V;
       v_side  numeric := V / 3;
     begin
       v_new_a := (v_total) / (v_sum_a + v_side) * (1 - v_margin);
       v_new_b := (v_total) / (v_sum_b + v_side) * (1 - v_margin);
-      v_new_d := (v_total) / (v_sum_d + v_side) * (1 - v_margin);
+      v_new_d := null;
     end;
   end if;
 
-  -- Clamp
+  -- Clamp — keep null draw as null
   v_new_a := GREATEST(1.10, LEAST(20.00, v_new_a));
   v_new_b := GREATEST(1.10, LEAST(20.00, v_new_b));
-  v_new_d := GREATEST(1.10, LEAST(20.00, v_new_d));
+  if v_new_d is not null then v_new_d := GREATEST(1.10, LEAST(20.00, v_new_d)); end if;
 
   update public.matches
   set odds_a = round(v_new_a, 2),
       odds_b = round(v_new_b, 2),
-      odds_draw = round(v_new_d, 2)
+      odds_draw = case when v_new_d is null then null else round(v_new_d, 2) end
   where id = p_match_id;
 end;
 $$;
@@ -768,7 +770,9 @@ as $$ select username, balance from public.profiles order by balance desc limit 
 grant execute on function public.get_leaderboard() to anon, authenticated;
 
 
+alter table public.site_settings add column if not exists brand jsonb default '{"name":"PLAYSTREET","title":"GAMEVERSE — گیم‌نت حرفه‌ای","description":"GAMEVERSE — گیم‌نت حرفه‌ای با شرط‌بندی زنده و کیف پول تومانی","keywords":"گیم نت, شرط بندی, بازی","og_image":"","favicon":"","logo_url":"","logo_text":"PLAYSTREET"}'::jsonb;
 alter table public.site_settings add column if not exists design text default 'minimal';
+update public.site_settings set brand='{"name":"PLAYSTREET","title":"GAMEVERSE — گیم‌نت حرفه‌ای","description":"GAMEVERSE — گیم‌نت حرفه‌ای با شرط‌بندی زنده و کیف پول تومانی","keywords":"گیم نت, شرط بندی, بازی","og_image":"","favicon":"","logo_url":"","logo_text":"PLAYSTREET"}'::jsonb where brand is null;
 do $$ begin
   alter publication supabase_realtime add table public.site_settings;
 do $$ begin
@@ -813,3 +817,125 @@ end
 $$;
 grant execute on function public.get_withdrawal_counts() to authenticated;
 
+-- ── 8. reels (vertical feed) ─────────────────────────────────
+-- reels — instagram-like vertical feed
+create table if not exists public.reels (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  video_url text not null check (char_length(video_url) >= 10),
+  caption text default '' ,
+  hashtags text default '',
+  likes_count integer not null default 0 check (likes_count >= 0),
+  comments_count integer not null default 0 check (comments_count >= 0),
+  is_published boolean not null default true,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_reels_created on public.reels(created_at desc);
+create index if not exists idx_reels_user on public.reels(user_id);
+alter table public.reels enable row level security;
+
+create table if not exists public.reel_likes (
+  id uuid primary key default gen_random_uuid(),
+  reel_id uuid not null references public.reels(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique(reel_id, user_id)
+);
+create index if not exists idx_reel_likes_reel on public.reel_likes(reel_id);
+create index if not exists idx_reel_likes_user on public.reel_likes(user_id);
+alter table public.reel_likes enable row level security;
+
+create table if not exists public.reel_comments (
+  id uuid primary key default gen_random_uuid(),
+  reel_id uuid not null references public.reels(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  body text not null check (char_length(body) >= 1 and char_length(body) <= 500),
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_reel_comments_reel on public.reel_comments(reel_id, created_at desc);
+alter table public.reel_comments enable row level security;
+
+-- RLS
+drop policy if exists "reels public read" on public.reels;
+create policy "reels public read" on public.reels for select using (is_published = true or user_id = auth.uid() or public.is_admin());
+drop policy if exists "reels insert own" on public.reels;
+create policy "reels insert own" on public.reels for insert with check (auth.uid() = user_id or public.is_admin());
+drop policy if exists "reels update own" on public.reels;
+create policy "reels update own" on public.reels for update using (auth.uid() = user_id or public.is_admin());
+drop policy if exists "reels delete own" on public.reels;
+create policy "reels delete own" on public.reels for delete using (auth.uid() = user_id or public.is_admin());
+
+drop policy if exists "reel_likes read all" on public.reel_likes;
+create policy "reel_likes read all" on public.reel_likes for select using (true);
+drop policy if exists "reel_likes insert own" on public.reel_likes;
+create policy "reel_likes insert own" on public.reel_likes for insert with check (auth.uid() = user_id);
+drop policy if exists "reel_likes delete own" on public.reel_likes;
+create policy "reel_likes delete own" on public.reel_likes for delete using (auth.uid() = user_id);
+
+drop policy if exists "reel_comments read all" on public.reel_comments;
+create policy "reel_comments read all" on public.reel_comments for select using (true);
+drop policy if exists "reel_comments insert auth" on public.reel_comments;
+create policy "reel_comments insert auth" on public.reel_comments for insert with check (auth.uid() = user_id);
+drop policy if exists "reel_comments delete own" on public.reel_comments;
+create policy "reel_comments delete own" on public.reel_comments for delete using (auth.uid() = user_id or public.is_admin());
+
+-- keep counts in sync via trigger (atomic, no race)
+create or replace function public.reels_like_count_trg() returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if tg_op = 'INSERT' then
+    update public.reels set likes_count = likes_count + 1 where id = new.reel_id;
+    return new;
+  elsif tg_op = 'DELETE' then
+    update public.reels set likes_count = greatest(0, likes_count - 1) where id = old.reel_id;
+    return old;
+  end if;
+  return null;
+end; $$;
+drop trigger if exists trg_reels_likes_count on public.reel_likes;
+create trigger trg_reels_likes_count after insert or delete on public.reel_likes for each row execute function public.reels_like_count_trg();
+
+create or replace function public.reels_comment_count_trg() returns trigger language plpgsql security definer set search_path = public, pg_temp as $$
+begin
+  if tg_op = 'INSERT' then
+    update public.reels set comments_count = comments_count + 1 where id = new.reel_id;
+    return new;
+  elsif tg_op = 'DELETE' then
+    update public.reels set comments_count = greatest(0, comments_count - 1) where id = old.reel_id;
+    return old;
+  end if;
+  return null;
+end; $$;
+drop trigger if exists trg_reels_comments_count on public.reel_comments;
+create trigger trg_reels_comments_count after insert or delete on public.reel_comments for each row execute function public.reels_comment_count_trg();
+
+-- grants
+grant select on public.reels to anon, authenticated;
+grant insert, update, delete on public.reels to authenticated;
+grant select, insert, delete on public.reel_likes to authenticated;
+grant select on public.reel_likes to anon;
+grant select, insert, delete on public.reel_comments to authenticated;
+grant select on public.reel_comments to anon;
+
+-- optional RPC toggle (idempotent, prevents duplicate error bubbling)
+create or replace function public.toggle_reel_like(p_reel_id uuid)
+returns jsonb
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_uid uuid := auth.uid(); v_exists boolean; v_cnt int;
+begin
+  if v_uid is null then raise exception 'login required'; end if;
+  if not exists(select 1 from public.reels where id = p_reel_id and is_published = true) then raise exception 'reel not found'; end if;
+  select exists(select 1 from public.reel_likes where reel_id = p_reel_id and user_id = v_uid) into v_exists;
+  if v_exists then
+    delete from public.reel_likes where reel_id = p_reel_id and user_id = v_uid;
+    select likes_count into v_cnt from public.reels where id = p_reel_id;
+    return jsonb_build_object('liked', false, 'likes_count', coalesce(v_cnt,0));
+  else
+    insert into public.reel_likes(reel_id, user_id) values(p_reel_id, v_uid) on conflict do nothing;
+    select likes_count into v_cnt from public.reels where id = p_reel_id;
+    return jsonb_build_object('liked', true, 'likes_count', coalesce(v_cnt,0));
+  end if;
+end; $$;
+grant execute on function public.toggle_reel_like(uuid) to authenticated;
+
+-- seed 3 demo reels (public sample videos) if empty

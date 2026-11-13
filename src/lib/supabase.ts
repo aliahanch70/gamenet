@@ -24,4 +24,5 @@ export type Bet = {
 }
 export type Withdrawal = { id:string; user_id:string; amount:number; account:string; status:'pending'|'approved'|'rejected'; note:string|null; created_at:string; decided_at:string|null }
 export type Notification = { id:string; user_id:string; title:string; body:string|null; link:string|null; is_read:boolean; created_at:string }
+export type Reel = { id:string; user_id:string; video_url:string; caption:string|null; hashtags:string|null; likes_count:number; comments_count:number; is_published:boolean; created_at:string }
 export type SiteSettings = { id:number; hero:any; features:any; gallery:any; games:any; contact:any; widgets?: any[]; design?: 'minimal'|'esports'|'glass'|'sportsbook'|'neon'|'midnight'|'arctic'|'stadium'; updated_at:string }

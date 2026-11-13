@@ -1,6 +1,6 @@
 -- migration_audit_fixes.sql — idempotent fixes for betting race conditions
 -- Applies same fixes as schema.sql to existing DB
--- Safe to run multiple times; uses DROP before CREATE to allow return-type changes
+-- Safe to run multiple times; uses DROP before CREATE
 
 drop function if exists public.recalc_odds(uuid) cascade;
 create or replace function public.recalc_odds(p_match_id uuid)
@@ -35,43 +35,44 @@ begin
   select coalesce(sum(amount), 0) into v_sum_b from public.bets where match_id = p_match_id and pick = 'team_b' and status = 'pending';
   select coalesce(sum(amount), 0) into v_sum_d from public.bets where match_id = p_match_id and pick = 'draw' and status = 'pending';
 
-  -- Virtual pool proportional to init odds
+  -- Virtual pool proportional to init odds — draw market only if init draw exists (null = no draw)
   if v_init_a is not null and v_init_a > 0 and v_init_b is not null and v_init_b > 0 then
     declare
       v_va numeric := floor(V * (1 - v_margin) / v_init_a);
       v_vb numeric := floor(V * (1 - v_margin) / v_init_b);
-      v_vd numeric := case when v_init_d is not null and v_init_d > 0 then floor(V * (1 - v_margin) / v_init_d) else V / 3 end;
-      v_total numeric := v_sum_a + v_sum_b + v_sum_d + V;
+      v_has_draw boolean := (v_init_d is not null and v_init_d > 0);
+      v_vd numeric := case when v_has_draw then floor(V * (1 - v_margin) / v_init_d) else 0 end;
+      v_total numeric := v_sum_a + v_sum_b + coalesce(case when v_has_draw then v_sum_d else 0 end, 0) + V;
     begin
       v_new_a := (v_total) / (v_sum_a + v_va) * (1 - v_margin);
       v_new_b := (v_total) / (v_sum_b + v_vb) * (1 - v_margin);
-      if v_init_d is not null and v_init_d > 0 then
+      if v_has_draw then
         v_new_d := (v_total) / (v_sum_d + v_vd) * (1 - v_margin);
       else
-        v_new_d := 3.00;
+        v_new_d := null;
       end if;
     end;
   else
-    -- Fallback: equal split
+    -- Fallback: equal split — no draw if none existed
     declare
-      v_total numeric := v_sum_a + v_sum_b + v_sum_d + V;
+      v_total numeric := v_sum_a + v_sum_b + V;
       v_side  numeric := V / 3;
     begin
       v_new_a := (v_total) / (v_sum_a + v_side) * (1 - v_margin);
       v_new_b := (v_total) / (v_sum_b + v_side) * (1 - v_margin);
-      v_new_d := (v_total) / (v_sum_d + v_side) * (1 - v_margin);
+      v_new_d := null;
     end;
   end if;
 
-  -- Clamp
+  -- Clamp — keep null draw as null
   v_new_a := GREATEST(1.10, LEAST(20.00, v_new_a));
   v_new_b := GREATEST(1.10, LEAST(20.00, v_new_b));
-  v_new_d := GREATEST(1.10, LEAST(20.00, v_new_d));
+  if v_new_d is not null then v_new_d := GREATEST(1.10, LEAST(20.00, v_new_d)); end if;
 
   update public.matches
   set odds_a = round(v_new_a, 2),
       odds_b = round(v_new_b, 2),
-      odds_draw = round(v_new_d, 2)
+      odds_draw = case when v_new_d is null then null else round(v_new_d, 2) end
   where id = p_match_id;
 end;
 $$;
@@ -424,7 +425,7 @@ $$;
 
 -- Re-grant execute after CASCADE drops
 grant execute on function public.recalc_odds(uuid) to authenticated;
-revoke execute on function public.recalc_odds(uuid) from anon, authenticated, public; -- internal only, called via SECURITY DEFINER
+revoke execute on function public.recalc_odds(uuid) from anon, authenticated, public; -- internal only
 grant execute on function public.place_bet(uuid, public.bet_pick, bigint) to authenticated;
 grant execute on function public.settle_match(uuid, public.bet_pick) to authenticated;
 grant execute on function public.cancel_bet(uuid) to authenticated;

@@ -249,8 +249,31 @@ export default function Landing() {
               <div>✉️ {contact.email}</div>
             </div>
           </div>
-          <div className="card" style={{ padding: 16, display: 'grid', placeItems: 'center', color: 'var(--muted)', fontSize: 13 }}>
-            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d239.8251956527834!2d51.46632408617925!3d35.74021545044254!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3f8e03004545b533%3A0x77082a3fbb4c68ff!2z2YbbjNqp2KfZhiDahtmI2Kg!5e1!3m2!1sfa!2s!4v1789294194579!5m2!1sfa!2s" ></iframe>
+          <div className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '14px 14px 0', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <span style={{ width: 30, height: 30, borderRadius: 10, display: 'grid', placeItems: 'center', background: 'var(--surface2)', border: '1px solid var(--line)', fontSize: 14, flexShrink: 0 }}>📍</span>
+                <span style={{ fontWeight: 900, fontSize: 13, whiteSpace: 'nowrap' }}>موقعیت روی نقشه</span>
+                <span style={{ fontSize: 11, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>· {contact.address}</span>
+              </div>
+              <a href="https://www.google.com/maps/search/?api=1&query=35.7402155,51.466324" target="_blank" rel="noopener" style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent)', whiteSpace: 'nowrap' }}>مشاهده در مپ ↗</a>
+            </div>
+            <div style={{ margin: 12, borderRadius: 16, overflow: 'hidden', border: '1px solid var(--line)', background: 'var(--surface2)', height: 268, position: 'relative', boxShadow: '0 8px 24px rgba(0,0,0,.18)' }}>
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d239.8251956527834!2d51.46632408617925!3d35.74021545044254!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3f8e03004545b533%3A0x77082a3fbb4c68ff!2z2YbbjNqp2KfZhiDahtmI2Kg!5e1!3m2!1sfa!2s!4v1789294194579!5m2!1sfa!2s"
+                width="100%"
+                height="100%"
+                style={{ border: 0, display: 'block' }}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
+                title="نقشه GAMEVERSE"
+              />
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: 16, boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)' }} />
+            </div>
+            <div style={{ padding: '0 14px 14px', fontSize: 11, color: 'var(--muted)', lineHeight: 1.7, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span>📍 {contact.address}</span><span style={{ opacity: .35 }}>•</span><span>⏰ {contact.hours}</span>
+            </div>
           </div>
         </div>
       </section>

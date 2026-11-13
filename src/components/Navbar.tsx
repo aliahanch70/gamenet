@@ -1,11 +1,13 @@
 
 import { useEffect, useState } from 'react'
+import { useTheme } from '../contexts/ThemeContext'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import AdminBell from './AdminBell'
 
 export default function Navbar() {
   const { userId, email, profile, isAdmin, signOut } = useAuth()
+  const { brand } = useTheme()
   const loc = useLocation()
   const nav = useNavigate()
   const [open, setOpen] = useState(false)
@@ -42,12 +44,13 @@ export default function Navbar() {
 
           {/* Logo */}
           <Link to="/" onClick={close} className="brand">
-            <span className="brand-icon">
-              <span />
-            </span>
-
+            {brand.logo_url ? (
+              <img src={brand.logo_url} alt={brand.name} style={{height:32, width:'auto', maxWidth:140, objectFit:'contain', borderRadius:8}} onError={e=>((e.currentTarget as HTMLImageElement).style.display='none')} />
+            ) : (
+              <span className="brand-icon"><span /></span>
+            )}
             <span className="brand-name">
-              PLAY<span>STREET</span>
+              {(brand.logo_text || brand.name || 'PLAYSTREET').slice(0,20)}
             </span>
           </Link>
 
@@ -64,6 +67,15 @@ export default function Navbar() {
                 <span className="nav-icon">🎲</span>
                 پیشبینی
               </Link>
+              {/* <Link
+                className={`modern-nav-link ${
+                  isActive('/reels') ? 'active' : ''
+                }`}
+                to="/reels"
+              >
+                <span className="nav-icon">▶</span>
+                ریلز
+              </Link> */}
 
               {userId && (
                 <>
@@ -209,7 +221,7 @@ export default function Navbar() {
 
               <div>
                 <div className="brand-name">
-                  GAME<span>VERSE</span>
+                  {brand.logo_text || brand.name || 'GAMEVERSE'}
                 </div>
                 <small>Gaming & Betting</small>
               </div>
@@ -263,6 +275,17 @@ export default function Navbar() {
               <span>شرط‌بندی</span>
               <b>←</b>
             </Link>
+            {/* <Link
+              className={`mobile-nav-link ${
+                isActive('/reels') ? 'active' : ''
+              }`}
+              to="/reels"
+              onClick={close}
+            >
+              <span className="mobile-link-icon">▶</span>
+              <span>ریلز</span>
+              <b>←</b>
+            </Link> */}
 
             {userId && (
               <>
@@ -349,7 +372,7 @@ export default function Navbar() {
             )}
 
             <div className="drawer-footer">
-              GAMEVERSE · ۲۰ سیستم · ۲۴/۷
+              {(brand.name||'GAMEVERSE')} · ۲۰ سیستم · ۲۴/۷
             </div>
 
           </div>
@@ -367,6 +390,10 @@ export default function Navbar() {
           <span className="bb-icon">🎲</span>
           <span className="bb-label">پیش‌بینی</span>
         </Link>
+        {/* <Link to="/reels" className={`bb-link ${isActive('/reels') ? 'active' : ''}`}>
+          <span className="bb-icon">▶</span>
+          <span className="bb-label">ریلز</span>
+        </Link> */}
         {userId ? (
           <>
             <Link to="/wallet" className={`bb-link ${isActive('/wallet') ? 'active' : ''}`}>

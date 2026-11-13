@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { WIDGET_CATALOG, type Widget, type WidgetType, newId } from '../lib/widgets'
+import { useTheme, DEFAULT_BRAND, type Brand } from '../contexts/ThemeContext'
 
 // ── defaults ────────────────────────────────────────────────
 const DEFAULT_HERO = {
@@ -62,19 +63,22 @@ export default function AdminSettings() {
   const [gallery, setGallery] = useState(DEFAULT_GALLERY)
   const [games, setGames] = useState(DEFAULT_GAMES)
   const [contact, setContact] = useState(DEFAULT_CONTACT)
+  const [brand, setBrand] = useState<Brand>(DEFAULT_BRAND)
   const [widgets, setWidgets] = useState<Widget[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const { setBrand: syncBrand } = useTheme()
 
   useEffect(() => {
-    supabase.from('site_settings').select('hero,features,gallery,games,contact,widgets').eq('id', 1).single().then(({ data, error }) => {
+    supabase.from('site_settings').select('hero,features,gallery,games,contact,widgets,brand').eq('id', 1).single().then(({ data, error }) => {
       if (data) {
         if (data.hero) setHero(data.hero)
         if (Array.isArray(data.features) && data.features.length) setFeatures(data.features)
         if (Array.isArray(data.gallery) && data.gallery.length) setGallery(data.gallery)
         if (Array.isArray(data.games) && data.games.length) setGames(data.games)
         if (data.contact) setContact(data.contact)
+        if ((data as any).brand && typeof (data as any).brand === 'object') setBrand({ ...DEFAULT_BRAND, ...(data as any).brand })
         if (Array.isArray((data as any).widgets)) setWidgets((data as any).widgets as Widget[])
       } else if (error && !String(error.message).includes('No rows')) {
         setMsg('خطا در بارگذاری: ' + error.message)
@@ -85,10 +89,11 @@ export default function AdminSettings() {
 
   const save = async () => {
     setSaving(true); setMsg(null)
-    const payload: any = { hero, features, gallery, games, contact, widgets, updated_at: new Date().toISOString() }
+    const payload: any = { hero, features, gallery, games, contact, widgets, brand, updated_at: new Date().toISOString() }
+    try { await syncBrand(brand) } catch {}
     const { error } = await supabase.from('site_settings').update(payload).eq('id', 1)
     if (error && error.message.includes('0 rows')) {
-      const { error: e2 } = await supabase.from('site_settings').insert({ id: 1, hero, features, gallery, games, contact, widgets } as any)
+      const { error: e2 } = await supabase.from('site_settings').insert({ id: 1, hero, features, gallery, games, contact, widgets, brand } as any)
       if (e2) setMsg('خطا: ' + e2.message); else setMsg('✅ تنظیمات ذخیره شد')
     } else if (error) setMsg('خطا: ' + error.message)
     else setMsg('✅ تنظیمات ذخیره شد')
@@ -117,6 +122,37 @@ export default function AdminSettings() {
         <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? 'در حال ذخیره…' : 'ذخیره'}</button>
       </div>
       {msg && <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 10, background: msg.startsWith('✅') ? 'rgba(0,229,160,.12)' : 'rgba(255,60,90,.12)', border: `1px solid ${msg.startsWith('✅') ? 'rgba(0,229,160,.3)' : 'rgba(255,60,90,.3)'}`, color: msg.startsWith('✅') ? 'var(--accent)' : '#ff6b7a', fontSize: 13 }}>{msg}</div>}
+
+      {/* ── Brand / Site identity */}
+      <Card title="🌐 هویت سایت — نام، متا، لوگو و آیکون">
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div><label style={{ fontSize: 11, color: 'var(--muted)' }}>نام سایت</label><input className="input" value={brand.name} onChange={e => setBrand({ ...brand, name: e.target.value })} placeholder="PLAYSTREET" /></div>
+            <div><label style={{ fontSize: 11, color: 'var(--muted)' }}>متن لوگو (کنار آیکون)</label><input className="input" value={brand.logo_text} onChange={e => setBrand({ ...brand, logo_text: e.target.value })} placeholder="PLAYSTREET" /></div>
+          </div>
+          <div><label style={{ fontSize: 11, color: 'var(--muted)' }}>عنوان تب مرورگر (title)</label><input className="input" value={brand.title} onChange={e => setBrand({ ...brand, title: e.target.value })} placeholder="GAMEVERSE — گیم‌نت حرفه‌ای" /></div>
+          <div><label style={{ fontSize: 11, color: 'var(--muted)' }}>توضیحات سایت (meta description)</label><textarea className="input" rows={2} value={brand.description} onChange={e => setBrand({ ...brand, description: e.target.value })} placeholder="توضیح کوتاه برای گوگل و اشتراک‌گذاری" /></div>
+          <div><label style={{ fontSize: 11, color: 'var(--muted)' }}>کلمات کلیدی (با ویرگول جدا کن)</label><input className="input" value={brand.keywords} onChange={e => setBrand({ ...brand, keywords: e.target.value })} placeholder="گیم نت, شرط بندی, بازی" /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--muted)' }}>آدرس لوگو (logo_url)</label>
+              <input className="input" value={brand.logo_url} onChange={e => setBrand({ ...brand, logo_url: e.target.value })} placeholder="https://..." dir="ltr" />
+              {brand.logo_url && <div style={{ marginTop: 6, height: 44, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--surface2)', display: 'grid', placeItems: 'center', overflow: 'hidden', padding: 4 }}><img src={brand.logo_url} alt="لوگو" style={{ maxHeight: 32, maxWidth: '100%', objectFit: 'contain' }} onError={e => ((e.currentTarget as HTMLImageElement).style.display='none')} /></div>}
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--muted)' }}>آدرس آیکون مرورگر (favicon)</label>
+              <input className="input" value={brand.favicon} onChange={e => setBrand({ ...brand, favicon: e.target.value })} placeholder="https://.../favicon.png" dir="ltr" />
+              {brand.favicon && <div style={{ marginTop: 6, height: 44, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--surface2)', display: 'grid', placeItems: 'center', overflow: 'hidden', padding: 4 }}><img src={brand.favicon} alt="favicon" style={{ width: 24, height: 24, objectFit: 'contain' }} onError={e => ((e.currentTarget as HTMLImageElement).style.display='none')} /></div>}
+            </div>
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--muted)' }}>تصویر اشتراک‌گذاری (og:image)</label>
+            <input className="input" value={brand.og_image} onChange={e => setBrand({ ...brand, og_image: e.target.value })} placeholder="https://.../og.jpg" dir="ltr" />
+            {brand.og_image && <div style={{ marginTop: 6, height: 96, borderRadius: 10, border: '1px solid var(--line)', background: 'var(--surface2)', overflow: 'hidden' }}><img src={brand.og_image} alt="og" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => ((e.currentTarget as HTMLImageElement).style.display='none')} /></div>}
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.7, margin: 0 }}>ذخیره = اعمال آنی روی عنوان، متا، آیکون و لوگوی هدر برای همه کاربران (Realtime). آدرس‌ها را از هاست/آپلود خود وارد کن.</p>
+        </div>
+      </Card>
 
       {/* ── Hero */}
       <Card title="🌟 هیرو (بالای صفحه)">
